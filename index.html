@@ -1,0 +1,235 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+  <title>Timechko</title>
+  <meta charset="UTF-8">
+  <script type="module" src="main.js"></script>
+  <style>
+    * {
+        box-sizing: border-box;
+    }
+    .loading > *:last-child {
+        display: none;
+    }
+    .loaded > *:first-child {
+        display: none;
+    }
+    .table-header > td > span {
+        font-size: 20px !important;
+        font-weight: bold;
+        padding-top: 16px;
+        display: inline-block;
+    }
+    td {
+        text-align: center;
+    }
+    td:not(:last-child) {
+        padding-right: 32px;
+    }
+    #app * {
+        font-family: monospace;
+        font-size: 16px;
+    }
+    .value-match {
+        text-decoration: #1fb91f underline 2px;
+        font-weight: bold;
+    }
+    .type-match {
+        text-decoration: black underline;
+    }
+    .not-parsed {
+        text-decoration: #ff6363 underline 2px;
+    }
+    .input {
+        width: 100%;
+        border: none;
+        text-align: center;
+    }
+    .input:focus-visible {
+        outline: none;
+    }
+    .input-empty:focus-within {
+        box-shadow: 0 0 5px 2px black;
+    }
+    .input-parsed:focus-within {
+        box-shadow: 0 0 5px 2px green;
+    }
+    .input-not-parsed:focus-within {
+        box-shadow: 0 0 5px 2px red;
+    }
+    .input-empty, .input-parsed, .input-not-parsed {
+        box-shadow: 0 0 3px 1px black;
+    }
+    .enter-sign {
+        cursor: pointer;
+        user-select: none;
+        flex: 0;
+    }
+    .hidden {
+        visibility: hidden;
+    }
+    .remove-button {
+        visibility: hidden;
+        cursor: pointer;
+        user-select: none;
+    }
+    .remove-button:hover {
+        border-radius: 7px;
+        background: lightgray;
+    }
+    tr:hover .remove-button {
+        visibility: visible;
+    }
+    .added-row {
+        animation-duration: .4s;
+        animation-name: highlight;
+        animation-iteration-count: 2;
+        animation-direction: alternate;
+    }
+    .added-row span {
+        animation-duration: .7s;
+        animation-name: appearing;
+        animation-timing-function: linear;
+    }
+    @keyframes highlight {
+        from {
+            background: none;
+        }
+        to {
+            background: lightgreen;
+        }
+    }
+
+    @keyframes appearing {
+        from {
+            opacity: 0.2;
+        }
+        to {
+            opacity: 1;
+        }
+    }
+    .failed-flush {
+        animation-duration: .2s;
+        animation-name: error-highlight;
+        animation-iteration-count: 1;
+    }
+    @keyframes error-highlight {
+        0% {
+            transform: translate(0);
+        }
+        10% {
+            transform: translate(-3px);
+        }
+        30% {
+            transform: translate(3px);
+        }
+        50% {
+            transform: translate(-3px);
+        }
+        70% {
+            transform: translate(3px);
+        }
+        90% {
+            transform: translate(-3px);
+        }
+        100% {
+            transform: translate(0);
+        }
+    }
+
+    .clock-loader {
+        display: inline-block;
+        font-size: 100px;
+        animation-duration: 2s;
+        animation-name: rotation;
+        animation-iteration-count: infinite;
+        animation-timing-function: linear;
+    }
+    @keyframes rotation {
+        from {
+            transform: rotate(0);
+        }
+        to {
+            transform: rotate(1turn);
+        }
+    }
+  </style>
+</head>
+<body>
+  <div style="display: flex; flex-direction: row; justify-content: center;">
+    <div style="flex-basis: 800px;">
+      <h1>Timechko</h1>
+      <div id="root" class="loading">
+        <div style="text-align: center;">
+          <span class="clock-loader">⌚</span><br>
+          <span>Loading...</span><br>
+          <span style="padding: 50px; display: inline-block;">This page runs dotnet runtime inside WebAssembly, be patient</span>
+        </div>
+        <div id="app">
+          <div style="display: flex; flex-direction: row; align-items: center; padding: 2px; border-radius: 5px;" :class="inputClass" @animationend="flushFailureIndicated">
+            <label accesskey="q" style="flex: 1;">
+              <input type="text" placeholder="DateTime | UnixTime | Ticks" v-model="input" @keydown.enter="flush" class="input">
+            </label>
+            <span :class="parsed || 'hidden'" @click="flush" class="enter-sign" title="Keep record. Same as hit enter">⏎</span>
+            <label accesskey="t" style="flex: 0;">
+              <select v-model="type" style="border: none; background: none; direction: rtl;">
+                <option selected>Guess</option>
+                <option>DateTime</option>
+                <option>UnixTime</option>
+                <option>Ticks</option>
+              </select>
+            </label>
+          </div>
+          <div style="margin-top: 16px;">
+            <table style="border-collapse: collapse; margin-left: auto; margin-right: auto;">
+              <tbody>
+                <tr v-if="parsed">
+                  <td :class="parsed.type === 'DateTime' && 'value-match'">{{ parsed.dateTime }}</td>
+                  <td :class="parsed.type === 'UnixTime' && 'value-match'">{{ parsed.unixTime }}</td>
+                  <td :class="parsed.type === 'Ticks'    && 'value-match'">{{ parsed.ticks    }}</td>
+                  <td></td>
+                </tr>
+                <tr v-else>
+                  <td colspan="3" style="text-align: center;">
+                    <span class="not-parsed">{{ input }}</span> <br>
+                  </td>
+                </tr>
+
+                <tr class="table-header">
+                  <td><span style="min-width: 176px;">DateTime (UTC)</span></td>
+                  <td><span style="min-width:  88px;">UnixTime      </span></td>
+                  <td><span style="min-width: 160px;">Ticks         </span></td>
+                  <td></td>
+                </tr>
+
+                <tr 
+                        v-for="(item, index) in parsedQueries"
+                        :class="item.origin === 'input' && 'added-row'"
+                        :key="item.index"
+                >
+                  <td :class="item.value.type === 'DateTime' && 'type-match'">
+                    <span>{{ item.value.dateTime }}</span>
+                  </td>
+                  <td :class="item.value.type === 'UnixTime' && 'type-match'">
+                    <span>{{ item.value.unixTime }}</span>
+                  </td>
+                  <td :class="item.value.type === 'Ticks'    && 'type-match'">
+                    <span>{{ item.value.ticks    }}</span>
+                  </td>
+                  <td>
+                    <span class="remove-button" @click="remove(index)">❌</span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- dev  -->
+  <script src="https://cdn.jsdelivr.net/npm/vue@2/dist/vue.js"></script>
+  <!-- prod -->
+<!--  <script src="https://cdn.jsdelivr.net/npm/vue@2"></script>-->
+</body>
+</html>
