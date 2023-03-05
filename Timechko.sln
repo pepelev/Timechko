@@ -1,0 +1,20 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Timechko", "Timechko\Timechko.csproj", "{B0A5A36D-CCEE-4CB6-8560-3904FF99604A}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{CBDA0744-1AEC-419A-8EDF-45E8414F2FCA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CBDA0744-1AEC-419A-8EDF-45E8414F2FCA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CBDA0744-1AEC-419A-8EDF-45E8414F2FCA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CBDA0744-1AEC-419A-8EDF-45E8414F2FCA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B0A5A36D-CCEE-4CB6-8560-3904FF99604A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B0A5A36D-CCEE-4CB6-8560-3904FF99604A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B0A5A36D-CCEE-4CB6-8560-3904FF99604A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B0A5A36D-CCEE-4CB6-8560-3904FF99604A}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal

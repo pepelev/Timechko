@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net7.0</TargetFramework>
+        <RuntimeIdentifier>browser-wasm</RuntimeIdentifier>
+        <OutputType>Exe</OutputType>
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+        <WasmMainJSPath>main.js</WasmMainJSPath>
+        <Nullable>enable</Nullable>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <WasmExtraFilesToDeploy Include="index.html" />
+        <WasmExtraFilesToDeploy Include="favicon.png" />
+    </ItemGroup>
+
+    <PropertyGroup>
+        <InvariantGlobalization>true</InvariantGlobalization>
+        <WasmEmitSymbolMap>false</WasmEmitSymbolMap>
+        <DebuggerSupport>false</DebuggerSupport>
+        <EnableUnsafeBinaryFormatterSerialization>false</EnableUnsafeBinaryFormatterSerialization>
+        <EnableUnsafeUTF7Encoding>false</EnableUnsafeUTF7Encoding>
+        <EventSourceSupport>false</EventSourceSupport>
+        <HttpActivityPropagationSupport>false</HttpActivityPropagationSupport>
+        <MetadataUpdaterSupport>false</MetadataUpdaterSupport>
+        <UseSystemResourceKeys>true</UseSystemResourceKeys>
+    </PropertyGroup>
+
+</Project>
