@@ -1,6 +1,8 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Globalization;
-using System.Net.NetworkInformation;
+using System.Linq;
+using System.Numerics;
 using System.Runtime.InteropServices.JavaScript;
 
 return;
@@ -10,11 +12,11 @@ public static partial class Time
     private static (long Min, long Max) TicksBounds => (0, DateTime.MaxValue.Ticks);
 
     private static (long Min, long Max) UnixTicksBounds => (
-        Min: (DateTime.UnixEpoch.Ticks - TicksBounds.Min),
-        Max: (TicksBounds.Min - DateTime.UnixEpoch.Ticks)
+        Min: DateTime.UnixEpoch.Ticks - TicksBounds.Min,
+        Max: TicksBounds.Min - DateTime.UnixEpoch.Ticks
     );
 
-    private static (long Min, long Max) UnixTimeBounds => (
+    private static (long Min, long Max) UnixTimeSecondsBounds => (
         Min: UnixTicksBounds.Min / TimeSpan.TicksPerSecond,
         Max: UnixTicksBounds.Max / TimeSpan.TicksPerSecond
     );
@@ -28,71 +30,6 @@ public static partial class Time
         Min: UnixTicksBounds.Min / TimeSpan.TicksPerMicrosecond,
         Max: UnixTicksBounds.Max / TimeSpan.TicksPerMicrosecond
     );
-
-    private abstract class Result
-    {
-        public abstract long Ticks { get; }
-        public abstract TimeGuid? TimeGuid { get; }
-    }
-
-    private sealed class TicksBased : Result
-    {
-        public TicksBased(long ticks)
-        {
-            Ticks = ticks;
-        }
-
-        public override long Ticks { get; }
-        public override TimeGuid? TimeGuid => Time.TimeGuid.TryCreateMinFromLong(Ticks);
-    }
-
-    private sealed class TimeGuidBased : Result
-    {
-        private readonly TimeGuid source;
-
-        public TimeGuidBased(TimeGuid source)
-        {
-            this.source = source;
-        }
-
-        public override long Ticks => source.Ticks;
-        public override TimeGuid? TimeGuid => source;
-    }
-
-    private readonly struct TimeGuid
-    {
-        private readonly Guid value;
-
-        public TimeGuid(Guid value)
-        {
-            this.value = value;
-        }
-
-        public long Ticks => throw new NotImplementedException();
-
-        public static TimeGuid? TryCreateMinFromLong(long ticks)
-        {
-            
-        }
-    }
-
-    private readonly struct DetailedResult
-    {
-        private readonly Result result;
-
-        public DetailedResult(Result result)
-        {
-            this.result = result;
-        }
-
-        public long Ticks => result.Ticks;
-        private long UnixTicks => (Ticks - DateTime.UnixEpoch.Ticks);
-        public long UnixTime => UnixTicks / TimeSpan.TicksPerSecond;
-        public long UnixTimeMilliseconds => UnixTicks / TimeSpan.TicksPerMillisecond;
-        public long UnixTimeMicroseconds => UnixTicks / TimeSpan.TicksPerMicrosecond;
-        public DateTime DateTime => new(Ticks, DateTimeKind.Utc);
-        public Guid? TimeGuid => result.TimeGuid;
-    }
 
     [JSExport]
     internal static string Now() => Print(
@@ -110,6 +47,77 @@ public static partial class Time
         "Ticks" => TicksToTicks(argument),
         "Guess" or _ => GuessToTicks(argument)
     };
+
+    [JSExport]
+    internal static string Parse2(string argument, string kind)
+    {
+        var details = kind switch
+        {
+            "DateTime" => ParseDateTime(argument)
+                .Map(dateTime => new TicksBased(dateTime.Ticks))
+                .Map(result => new DetailedResult(result, Type.DateTime)),
+
+            "UnixTime (Seconds)" => ParseLong(argument).Bind(UnixTimeFormat.Seconds.Parse),
+            "UnixTime (Milliseconds)" => ParseLong(argument).Bind(UnixTimeFormat.Milliseconds.Parse),
+            "UnixTime (Microseconds)" => ParseLong(argument).Bind(UnixTimeFormat.Microseconds.Parse),
+            "UnixTime (Any)" => ParseLong(argument).Bind(UnixTimeFormat.Formats.Parse),
+            "Ticks" => ParseLong(argument).Bind(TicksFormat.Singleton.Parse),
+            "TimeGuid" => Option<DetailedResult>.None, // todo
+            "Guess" or _ => ParseDateTime(argument)
+                .Map(dateTime => new TicksBased(dateTime.Ticks) as Result)
+                .Map(result => new DetailedResult(result, Type.DateTime))
+        };
+
+        return details
+            .Map(result => result.ToJson())
+            .Or(""); // todo
+    }
+
+    private static Option<DetailedResult> Parse(this IDateTimeFormat formats, long parts) =>
+        Parse(new[] { formats }, parts);
+
+    private static Option<DetailedResult> Parse(this IEnumerable<IDateTimeFormat> formats, long parts)
+    {
+        var heuristic = new DateTime(2023, 01, 01, 00, 00, 00, DateTimeKind.Utc);
+        var parsed = formats
+            .Select(format => (Parsed: format.ToDateTime(parts), format.Type))
+            .Where(pair => pair.Parsed.HasValue)
+            .Select(pair => (pair.Parsed.Value, pair.Type))
+            .OrderBy(pair => Math.Abs((pair.Value - heuristic).Ticks))
+            .Select(pair => new DetailedResult(new TicksBased(pair.Value.Ticks), pair.Type))
+            .Take(1)
+            .ToArray();
+
+        return parsed.Length > 0
+            ? Option<DetailedResult>.Some(parsed[0])
+            : Option<DetailedResult>.None;
+    }
+    
+    private static Option<DateTime> ParseDateTime(string argument)
+    {
+        var success = DateTime.TryParse(
+            argument,
+            CultureInfo.InvariantCulture,
+            DateTimeStyles.AdjustToUniversal | DateTimeStyles.AllowWhiteSpaces | DateTimeStyles.AssumeUniversal,
+            out var result
+        );
+        return success
+            ? Option<DateTime>.Some(result)
+            : Option<DateTime>.None;
+    }
+
+    private static Option<long> ParseLong(string argument)
+    {
+        var success = long.TryParse(
+            argument,
+            NumberStyles.Integer,
+            CultureInfo.InvariantCulture,
+            out var result
+        );
+        return success
+            ? Option<long>.Some(result)
+            : Option<long>.None;
+    }
 
     private static string DateTimeToTicks(string argument)
     {
@@ -178,11 +186,11 @@ public static partial class Time
         var dateTime = new DateTime(ticks, DateTimeKind.Utc);
         var unixTime = (dateTime - DateTime.UnixEpoch).Ticks / TimeSpan.TicksPerSecond;
         return ToJson(
-            type: type,
-            dateTime: Print(dateTime),
-            unixTime: unixTime.ToString(CultureInfo.InvariantCulture),
-            ticks: ticks.ToString(CultureInfo.InvariantCulture),
-            timeGuid: "93E9A3DC-E331-4CC1-BAA6-5A012F9D06C8" // todo
+            type,
+            Print(dateTime),
+            unixTime.ToString(CultureInfo.InvariantCulture),
+            ticks.ToString(CultureInfo.InvariantCulture),
+            "93E9A3DC-E331-4CC1-BAA6-5A012F9D06C8" // todo
         );
     }
 
@@ -198,6 +206,7 @@ public static partial class Time
         {
             return result.Replace("T00:00:00.0000000Z", "Z");
         }
+
         if (result.EndsWith(".0000000Z"))
         {
             return result.Replace(".0000000Z", "Z");
@@ -209,5 +218,225 @@ public static partial class Time
         }
 
         return result;
+    }
+
+    private static bool Between<T>(this T value, (T Min, T Max) bounds) where T : IComparisonOperators<T, T, bool>
+    {
+        // var order = Comparer<T>.Default;
+        // return
+        //     order.Compare(bounds.Min, value) <= 0 &&
+        //     order.Compare(value, bounds.Max value) <= 0;
+
+        return bounds.Min <= value && value <= bounds.Max;
+    }
+
+    private interface IDateTimeFormat
+    {
+        Type Type { get; }
+        Option<DateTime> ToDateTime(long parts);
+    }
+
+    private sealed class TicksFormat : IDateTimeFormat
+    {
+        public static TicksFormat Singleton { get; } = new();
+
+        public Type Type => Type.Ticks;
+
+        public Option<DateTime> ToDateTime(long ticks) => ticks.Between(TicksBounds)
+            ? Option<DateTime>.Some(new DateTime(ticks, DateTimeKind.Utc))
+            : Option<DateTime>.None;
+    }
+
+    private sealed class UnixTimeFormat : IDateTimeFormat
+    {
+        public Type Type { get; }
+        private readonly TimeSpan fraction;
+
+        private UnixTimeFormat(TimeSpan fraction, Type type)
+        {
+            Type = type;
+            this.fraction = fraction;
+        }
+
+        private (long Min, long Max) Bounds => (
+            Min: UnixTicksBounds.Min / fraction.Ticks,
+            Max: UnixTicksBounds.Max / fraction.Ticks
+        );
+
+        public static UnixTimeFormat Seconds => new(
+            new TimeSpan(TimeSpan.TicksPerSecond),
+            Type.UnixTimeSeconds
+        );
+
+        public static UnixTimeFormat Milliseconds => new(
+            new TimeSpan(TimeSpan.TicksPerMillisecond),
+            Type.UnixTimeMilliseconds
+        );
+
+        public static UnixTimeFormat Microseconds => new(
+            new TimeSpan(TimeSpan.TicksPerMicrosecond),
+            Type.UnixTimeMicroseconds
+        );
+
+        public static IReadOnlyCollection<UnixTimeFormat> Formats { get; } = new[]
+        {
+            Seconds,
+            Milliseconds,
+            Microseconds
+        };
+
+        public Option<DateTime> ToDateTime(long parts)
+        {
+            if (parts.Between(Bounds))
+            {
+                return Option<DateTime>.Some(
+                    DateTime.UnixEpoch + parts * fraction
+                );
+            }
+
+            return Option<DateTime>.None;
+        }
+    }
+
+    private readonly struct Option<T>
+    {
+        public bool HasValue { get; }
+        private readonly T value;
+
+        private Option(T value, bool hasValue)
+        {
+            this.value = value;
+            HasValue = hasValue;
+        }
+
+        public T Value => HasValue
+            ? value
+            : throw new Exception();
+
+        public Option<TNew> Map<TNew>(Func<T, TNew> map) => HasValue
+            ? Option<TNew>.Some(map(value))
+            : Option<TNew>.None;
+
+        public Option<TNew> Bind<TNew>(Func<T, Option<TNew>> map) => HasValue
+            ? map(value)
+            : Option<TNew>.None;
+
+        public Option<T> Filter(Func<T, bool> filter) => HasValue && filter(value)
+            ? this
+            : None;
+
+        public T Or(T fallback) => HasValue
+            ? value
+            : fallback;
+
+        public static Option<T> Some(T value) => new(value, true);
+
+        public static Option<T> None => new(
+#pragma warning disable CS8604
+            default,
+#pragma warning restore CS8604
+            false
+        );
+
+        public static Option<T> operator |(Option<T> a, Option<T> b) => a.HasValue
+            ? a
+            : b;
+    }
+
+    // todo
+    private enum TypeIn
+    {
+        Guess,
+        UnixTimeAny,
+        UnixTimeSeconds,
+        UnixTimeMilliseconds,
+        UnixTimeMicroseconds,
+        Ticks,
+        DateTime,
+        TimeGuid
+    }
+
+    private enum Type
+    {
+        UnixTimeSeconds,
+        UnixTimeMilliseconds,
+        UnixTimeMicroseconds,
+        Ticks,
+        DateTime,
+        TimeGuid
+    }
+
+    private abstract class Result
+    {
+        public abstract long Ticks { get; }
+        public abstract TimeGuid? TimeGuid { get; }
+    }
+
+    private sealed class TicksBased : Result
+    {
+        public TicksBased(long ticks)
+        {
+            Ticks = ticks;
+        }
+
+        public override long Ticks { get; }
+        public override TimeGuid? TimeGuid => Time.TimeGuid.TryCreateMinFromLong(Ticks);
+    }
+
+    private sealed class TimeGuidBased : Result
+    {
+        private readonly TimeGuid source;
+
+        public TimeGuidBased(TimeGuid source)
+        {
+            this.source = source;
+        }
+
+        public override long Ticks => source.Ticks;
+        public override TimeGuid? TimeGuid => source;
+    }
+
+    private readonly struct TimeGuid
+    {
+        private readonly Guid value;
+
+        public TimeGuid(Guid value)
+        {
+            this.value = value;
+        }
+
+        public override string ToString() => value.ToString("D");
+
+        public long Ticks => throw new NotImplementedException();
+
+        public static TimeGuid? TryCreateMinFromLong(long ticks)
+        {
+            return null; // todo
+        }
+    }
+
+    private readonly struct DetailedResult
+    {
+        private readonly Result result;
+        public Type Type { get; }
+
+        public DetailedResult(Result result, Type type)
+        {
+            this.result = result;
+            this.Type = type;
+        }
+
+        public long Ticks => result.Ticks;
+        private long UnixTicks => Ticks - DateTime.UnixEpoch.Ticks;
+        public long UnixTime => UnixTicks / TimeSpan.TicksPerSecond;
+        public long UnixTimeMilliseconds => UnixTicks / TimeSpan.TicksPerMillisecond;
+        public long UnixTimeMicroseconds => UnixTicks / TimeSpan.TicksPerMicrosecond;
+        public DateTime DateTime => new(Ticks, DateTimeKind.Utc);
+        public TimeGuid? TimeGuid => result.TimeGuid;
+
+        public string ToJson()
+        {
+            throw new NotImplementedException();
+        }
     }
 }
