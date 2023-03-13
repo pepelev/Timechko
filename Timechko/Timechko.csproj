@@ -7,6 +7,7 @@
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
         <WasmMainJSPath>main.js</WasmMainJSPath>
         <Nullable>enable</Nullable>
+        <OutputPath>../bin</OutputPath>
     </PropertyGroup>
 
     <ItemGroup>
