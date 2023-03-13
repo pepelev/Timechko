@@ -9,6 +9,9 @@ return;
 
 public static partial class Time
 {
+    private static readonly IEnumerable<IDateTimeFormat> numericFormats = UnixTimeFormat.Formats
+        .Append<IDateTimeFormat>(TicksFormat.Singleton);
+
     private static (long Min, long Max) TicksBounds => (0, DateTime.MaxValue.Ticks);
 
     private static (long Min, long Max) UnixTicksBounds => (
@@ -16,6 +19,8 @@ public static partial class Time
         Max: TicksBounds.Min - DateTime.UnixEpoch.Ticks
     );
 
+
+    //todo remove
     private static (long Min, long Max) UnixTimeSecondsBounds => (
         Min: UnixTicksBounds.Min / TimeSpan.TicksPerSecond,
         Max: UnixTicksBounds.Max / TimeSpan.TicksPerSecond
@@ -40,7 +45,7 @@ public static partial class Time
     );
 
     [JSExport]
-    internal static string Parse(string argument, string kind) => kind switch
+    internal static string ParseOld(string argument, string kind) => kind switch
     {
         "DateTime" => DateTimeToTicks(argument),
         "UnixTime" => UnixTimeToTicks(argument),
@@ -49,28 +54,27 @@ public static partial class Time
     };
 
     [JSExport]
-    internal static string Parse2(string argument, string kind)
+    internal static string Parse(string argument, string kind)
     {
+        var asDateTime = ParseDateTime(argument)
+            .Map(dateTime => new TicksBased(dateTime.Ticks))
+            .Map(result => new DetailedResult(result, Type.DateTime));
+        var asNumeric = ParseLong(argument).Bind(numericFormats.Parse);
         var details = kind switch
         {
-            "DateTime" => ParseDateTime(argument)
-                .Map(dateTime => new TicksBased(dateTime.Ticks))
-                .Map(result => new DetailedResult(result, Type.DateTime)),
-
+            "DateTime" => asDateTime,
             "UnixTime (Seconds)" => ParseLong(argument).Bind(UnixTimeFormat.Seconds.Parse),
             "UnixTime (Milliseconds)" => ParseLong(argument).Bind(UnixTimeFormat.Milliseconds.Parse),
             "UnixTime (Microseconds)" => ParseLong(argument).Bind(UnixTimeFormat.Microseconds.Parse),
             "UnixTime (Any)" => ParseLong(argument).Bind(UnixTimeFormat.Formats.Parse),
             "Ticks" => ParseLong(argument).Bind(TicksFormat.Singleton.Parse),
             "TimeGuid" => Option<DetailedResult>.None, // todo
-            "Guess" or _ => ParseDateTime(argument)
-                .Map(dateTime => new TicksBased(dateTime.Ticks) as Result)
-                .Map(result => new DetailedResult(result, Type.DateTime))
+            "Guess" or _ => asDateTime | asNumeric
         };
 
         return details
             .Map(result => result.ToJson())
-            .Or(""); // todo
+            .Or("null");
     }
 
     private static Option<DetailedResult> Parse(this IDateTimeFormat formats, long parts) =>
@@ -428,15 +432,22 @@ public static partial class Time
 
         public long Ticks => result.Ticks;
         private long UnixTicks => Ticks - DateTime.UnixEpoch.Ticks;
-        public long UnixTime => UnixTicks / TimeSpan.TicksPerSecond;
+        public long UnixTimeSeconds => UnixTicks / TimeSpan.TicksPerSecond;
         public long UnixTimeMilliseconds => UnixTicks / TimeSpan.TicksPerMillisecond;
         public long UnixTimeMicroseconds => UnixTicks / TimeSpan.TicksPerMicrosecond;
         public DateTime DateTime => new(Ticks, DateTimeKind.Utc);
         public TimeGuid? TimeGuid => result.TimeGuid;
 
-        public string ToJson()
+        public string ToJson() => $$"""
         {
-            throw new NotImplementedException();
+            "type":"{{Type:G}}",
+            "dateTime":"{{Print(DateTime)}}",
+            "unixTimeSeconds":"{{UnixTimeSeconds.ToString(CultureInfo.InvariantCulture)}}",
+            "unixTimeMilliseconds":"{{UnixTimeMilliseconds.ToString(CultureInfo.InvariantCulture)}}",
+            "unixTimeMicroseconds":"{{UnixTimeMicroseconds.ToString(CultureInfo.InvariantCulture)}}",
+            "ticks":"{{Ticks.ToString(CultureInfo.InvariantCulture)}}",
+            "timeGuid":"{{TimeGuid}}"
         }
+        """;
     }
 }

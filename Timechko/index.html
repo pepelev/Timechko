@@ -189,7 +189,7 @@
               <tbody>
                 <tr v-if="parsed">
                   <td :class="parsed.type === 'DateTime' && 'value-match'">{{ parsed.dateTime }}</td>
-                  <td :class="parsed.type === 'UnixTime' && 'value-match'">{{ parsed.unixTime }}</td>
+                  <td :class="parsed.type === 'UnixTimeSeconds' && 'value-match'">{{ parsed.unixTimeSeconds }}</td>
                   <td :class="parsed.type === 'Ticks'    && 'value-match'">{{ parsed.ticks    }}</td>
                   <td></td>
                 </tr>
@@ -215,7 +215,7 @@
                     <span>{{ item.value.dateTime }}</span>
                   </td>
                   <td :class="item.value.type === 'UnixTime' && 'type-match'">
-                    <span>{{ item.value.unixTime }}</span>
+                    <span>{{ item.value.unixTimeSeconds }}</span>
                   </td>
                   <td :class="item.value.type === 'Ticks'    && 'type-match'">
                     <span>{{ item.value.ticks    }}</span>
