@@ -91,15 +91,31 @@ const getField = function (obj, type) {
 
 const readQueries = queriesStorage.read();
 
+const hashParts = document.location.hash
+    ? decodeURI(document.location.hash.slice(1)).split("@")
+    : [];
+
+const knownTypes = [
+    "Guess",
+    "DateTime",
+    "UnixTime (seconds)",
+    "UnixTime (milliseconds)",
+    "UnixTime (microseconds)",
+    "UnixTime (guess)",
+    "Ticks",
+    "TimeGuid"
+];
+
+const startInput = hashParts[0] || nowRaw();
+const startType = hashParts[1] && knownTypes.find(type => type === hashParts[1]) || "Guess";
+
 window.app = new Vue({
     el: '#app',
     data: {
         state: "Typing",
         index: readQueries.length,
-        input: document.location.hash
-            ? decodeURI(document.location.hash.slice(1))
-            : nowRaw(),
-        type: "Guess",
+        input: startInput,
+        type: startType,
         columns: {
             dateTime: true,
             unixTimeSeconds: true,
@@ -130,7 +146,7 @@ window.app = new Vue({
         },
         hasParsedQueryWithType: function (type) {
             return (this.parsed && this.parsed.type === type) ||
-                !!this.parsedQueries.find(query => query.type === type);
+                !!this.parsedQueries.find(query => query.value.type === type);
         }
     },
     computed: {
@@ -171,18 +187,27 @@ window.app = new Vue({
             } else {
                 return type;
             }
+        },
+        hash: function () {
+            const type = this.type.trim();
+            const input = this.input.trim();
+            return type === "Guess"
+                ? input
+                : `${input}@${type}`;
         }
     },
     watch: {
-        input: function () {
-            document.location.hash = this.input;
+        hash: function () {
+            try {
+                document.location.hash = this.hash;
+            }
+            catch {
+                // suppress any errors
+            }
             this.state = "Typing";
         },
         parsedQueries: function () {
             queriesStorage.write(this.parsedQueries);
-        },
-        columns: function () {
-            console.log(this.columns);
         }
     }
 });
