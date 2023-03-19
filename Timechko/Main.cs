@@ -9,31 +9,14 @@ return;
 
 public static partial class Time
 {
-    private static readonly IEnumerable<IDateTimeFormat> numericFormats = UnixTimeFormat.Formats
-        .Append<IDateTimeFormat>(TicksFormat.Singleton);
+    private static IEnumerable<IDateTimeFormat> NumericFormats { get; } =
+        UnixTimeFormat.Formats.Append<IDateTimeFormat>(TicksFormat.Singleton);
 
     private static (long Min, long Max) TicksBounds => (0, DateTime.MaxValue.Ticks);
 
     private static (long Min, long Max) UnixTicksBounds => (
-        Min: DateTime.UnixEpoch.Ticks - TicksBounds.Min,
-        Max: TicksBounds.Min - DateTime.UnixEpoch.Ticks
-    );
-
-
-    //todo remove
-    private static (long Min, long Max) UnixTimeSecondsBounds => (
-        Min: UnixTicksBounds.Min / TimeSpan.TicksPerSecond,
-        Max: UnixTicksBounds.Max / TimeSpan.TicksPerSecond
-    );
-
-    private static (long Min, long Max) UnixTimeMillisecondsBounds => (
-        Min: UnixTicksBounds.Min / TimeSpan.TicksPerMillisecond,
-        Max: UnixTicksBounds.Max / TimeSpan.TicksPerMillisecond
-    );
-
-    private static (long Min, long Max) UnixTimeMicrosecondsBounds => (
-        Min: UnixTicksBounds.Min / TimeSpan.TicksPerMicrosecond,
-        Max: UnixTicksBounds.Max / TimeSpan.TicksPerMicrosecond
+        Min: TicksBounds.Min - DateTime.UnixEpoch.Ticks,
+        Max: TicksBounds.Max - DateTime.UnixEpoch.Ticks
     );
 
     [JSExport]
@@ -45,28 +28,19 @@ public static partial class Time
     );
 
     [JSExport]
-    internal static string ParseOld(string argument, string kind) => kind switch
-    {
-        "DateTime" => DateTimeToTicks(argument),
-        "UnixTime" => UnixTimeToTicks(argument),
-        "Ticks" => TicksToTicks(argument),
-        "Guess" or _ => GuessToTicks(argument)
-    };
-
-    [JSExport]
     internal static string Parse(string argument, string kind)
     {
         var asDateTime = ParseDateTime(argument)
             .Map(dateTime => new TicksBased(dateTime.Ticks))
             .Map(result => new DetailedResult(result, Type.DateTime));
-        var asNumeric = ParseLong(argument).Bind(numericFormats.Parse);
-        var details = kind switch
+        var asNumeric = ParseLong(argument).Bind(NumericFormats.Parse);
+        var details = kind.Trim() switch
         {
             "DateTime" => asDateTime,
-            "UnixTime (Seconds)" => ParseLong(argument).Bind(UnixTimeFormat.Seconds.Parse),
-            "UnixTime (Milliseconds)" => ParseLong(argument).Bind(UnixTimeFormat.Milliseconds.Parse),
-            "UnixTime (Microseconds)" => ParseLong(argument).Bind(UnixTimeFormat.Microseconds.Parse),
-            "UnixTime (Any)" => ParseLong(argument).Bind(UnixTimeFormat.Formats.Parse),
+            "UnixTimeSeconds" => ParseLong(argument).Bind(UnixTimeFormat.Seconds.Parse),
+            "UnixTimeMilliseconds" => ParseLong(argument).Bind(UnixTimeFormat.Milliseconds.Parse),
+            "UnixTimeMicroseconds" => ParseLong(argument).Bind(UnixTimeFormat.Microseconds.Parse),
+            "UnixTimeGuess" => ParseLong(argument).Bind(UnixTimeFormat.Formats.Parse),
             "Ticks" => ParseLong(argument).Bind(TicksFormat.Singleton.Parse),
             "TimeGuid" => Option<DetailedResult>.None, // todo
             "Guess" or _ => asDateTime | asNumeric
@@ -224,15 +198,8 @@ public static partial class Time
         return result;
     }
 
-    private static bool Between<T>(this T value, (T Min, T Max) bounds) where T : IComparisonOperators<T, T, bool>
-    {
-        // var order = Comparer<T>.Default;
-        // return
-        //     order.Compare(bounds.Min, value) <= 0 &&
-        //     order.Compare(value, bounds.Max value) <= 0;
-
-        return bounds.Min <= value && value <= bounds.Max;
-    }
+    private static bool Between<T>(this T value, (T Min, T Max) bounds) where T : IComparisonOperators<T, T, bool> =>
+        bounds.Min <= value && value <= bounds.Max;
 
     private interface IDateTimeFormat
     {
@@ -351,7 +318,7 @@ public static partial class Time
     private enum TypeIn
     {
         Guess,
-        UnixTimeAny,
+        UnixTimeGuess,
         UnixTimeSeconds,
         UnixTimeMilliseconds,
         UnixTimeMicroseconds,

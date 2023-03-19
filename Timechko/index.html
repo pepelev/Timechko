@@ -19,20 +19,27 @@
         display: none;
     }
     .table-header > td > span {
-        font-size: 20px !important;
+        font-size: 1.25rem !important;
         font-weight: bold;
-        padding-top: 16px;
+        padding-top: 1rem;
         display: inline-block;
+    }
+    ul {
+        list-style-type: none;
+        padding: 0;
     }
     td {
         text-align: center;
     }
     td:not(:last-child) {
-        padding-right: 32px;
+        padding-right: 1rem;
+    }
+    select {
+        cursor: pointer;
     }
     #app * {
         font-family: monospace;
-        font-size: 16px;
+        font-size: 1rem;
     }
     .value-match {
         text-decoration: #1fb91f underline 2px;
@@ -122,19 +129,19 @@
             transform: translate(0);
         }
         10% {
-            transform: translate(-3px);
+            transform: translate(-0.2rem);
         }
         30% {
-            transform: translate(3px);
+            transform: translate(0.2rem);
         }
         50% {
-            transform: translate(-3px);
+            transform: translate(-0.2rem);
         }
         70% {
-            transform: translate(3px);
+            transform: translate(0.2rem);
         }
         90% {
-            transform: translate(-3px);
+            transform: translate(-0.2rem);
         }
         100% {
             transform: translate(0);
@@ -143,7 +150,7 @@
 
     .clock-loader {
         display: inline-block;
-        font-size: 100px;
+        font-size: 6.5rem;
         animation-duration: 2s;
         animation-name: rotation;
         animation-iteration-count: infinite;
@@ -161,79 +168,131 @@
 </head>
 <body lang="en">
   <div style="display: flex; flex-direction: row; justify-content: center;">
-    <div style="flex-basis: 800px;">
+    <div style="flex-basis: 75vw;">
       <h1>Timechko</h1>
       <div id="root" class="loading">
         <div style="text-align: center;">
           <span class="clock-loader">⌚</span><br>
           <span>Loading...</span><br>
-          <span style="padding: 50px; display: inline-block;">This page runs dotnet runtime inside WebAssembly, be patient</span>
+          <span style="padding: 3rem; display: inline-block;">This page runs dotnet runtime inside WebAssembly, be patient</span>
         </div>
-        <div id="app">
-          <div style="display: flex; flex-direction: row; align-items: center; padding: 2px; border-radius: 5px;" :class="inputClass" @animationend="flushFailureIndicated">
-            <label accesskey="q" style="flex: 1;">
-              <input type="text" placeholder="DateTime | UnixTime | Ticks" v-model="input" @keydown.enter="flush" class="input">
-            </label>
-            <span :class="parsed || 'hidden'" @click="flush" class="enter-sign" title="Keep record. Same as hit enter">⏎</span>
-            <label accesskey="t" style="flex: 0;">
-              <select v-model="type" style="border: none; background: none; direction: rtl;">
-                <option selected>Guess</option>
-                <option>DateTime</option>
-                <option>UnixTime</option>
-                <option>Ticks</option>
-              </select>
-            </label>
-          </div>
-          <div style="margin-top: 16px;">
-            <table style="border-collapse: collapse; margin-left: auto; margin-right: auto;">
-              <tbody>
-                <tr v-if="parsed">
-                  <td :class="parsed.type === 'DateTime' && 'value-match'">{{ parsed.dateTime }}</td>
-                  <td :class="parsed.type === 'UnixTimeSeconds' && 'value-match'">{{ parsed.unixTimeSeconds }}</td>
-                  <td :class="parsed.type === 'Ticks'    && 'value-match'">{{ parsed.ticks    }}</td>
-                  <td></td>
-                </tr>
-                <tr v-else>
-                  <td colspan="3" style="text-align: center;">
-                    <span class="not-parsed">{{ input }}</span> <br>
-                  </td>
-                </tr>
-
-                <tr class="table-header">
-                  <td><span style="min-width: 176px;">DateTime (UTC)</span></td>
-                  <td><span style="min-width:  88px;">UnixTime      </span></td>
-                  <td><span style="min-width: 160px;">Ticks         </span></td>
-                  <td></td>
-                </tr>
-
-                <tr 
-                        v-for="(item, index) in parsedQueries"
-                        :class="item.origin === 'input' && 'added-row'"
-                        :key="item.index"
-                >
-                  <td :class="item.value.type === 'DateTime' && 'type-match'">
-                    <span>{{ item.value.dateTime }}</span>
-                  </td>
-                  <td :class="item.value.type === 'UnixTime' && 'type-match'">
-                    <span>{{ item.value.unixTimeSeconds }}</span>
-                  </td>
-                  <td :class="item.value.type === 'Ticks'    && 'type-match'">
-                    <span>{{ item.value.ticks    }}</span>
-                  </td>
-                  <td>
-                    <span class="remove-button" @click="remove(index)">❌</span>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+        <div>
+          <div id="app" style="display: flex; flex-direction: column;">
+            <div style="align-self: flex-end">
+              Table columns:
+              <ul>
+                <li><label><input type="checkbox" checked v-model="columns.dateTime"            >DateTime               </label></li>
+                <li><label><input type="checkbox" checked v-model="columns.unixTimeSeconds"     >UnixTime (seconds)     </label></li>
+                <li><label><input type="checkbox"         v-model="columns.unixTimeMilliseconds">UnixTime (milliseconds)</label></li>
+                <li><label><input type="checkbox"         v-model="columns.unixTimeMicroseconds">UnixTime (microseconds)</label></li>
+                <li><label><input type="checkbox" checked v-model="columns.ticks"               >Ticks                  </label></li>
+                <li><label><input type="checkbox"         v-model="columns.timeGuid"            >TimeGuid               </label></li>
+              </ul>
+            </div>
+            <div style="display: flex; flex-direction: row; align-items: center; padding: 2px; border-radius: 5px;" :class="inputClass" @animationend="flushFailureIndicated">
+              <label accesskey="q" style="flex: 1;">
+                <input type="text" placeholder="DateTime | UnixTime | Ticks | TimeGuid" v-model="input" @keydown.enter="flush" class="input">
+              </label>
+              <span :class="parsed && '' || 'hidden'" @click="flush" class="enter-sign" title="Keep record. Same as hit enter">⏎</span>
+              <label accesskey="t" style="flex: 0;">
+                <select v-model="type" style="border: none; background: none; direction: rtl;">
+                  <option selected>Guess                  </option>
+                  <option         >DateTime               </option>
+                  <option         >UnixTime (seconds)     </option>
+                  <option         >UnixTime (milliseconds)</option>
+                  <option         >UnixTime (microseconds)</option>
+                  <option         >UnixTime (guess)       </option>
+                  <option         >Ticks                  </option>
+                  <option         >TimeGuid               </option>
+                </select>
+              </label>
+            </div>
+            <div style="margin-top: 1rem;">
+              <table style="border-collapse: collapse; margin-left: auto; margin-right: auto;">
+                <tbody>
+                  <tr v-if="parsed">
+                    <td v-if="shownColumns.dateTime"             :class="parsed.type === 'DateTime'             && 'value-match'">{{ parsed.dateTime }}            </td>
+                    <td v-if="shownColumns.unixTimeSeconds"      :class="parsed.type === 'UnixTimeSeconds'      && 'value-match'">{{ parsed.unixTimeSeconds }}     </td>
+                    <td v-if="shownColumns.unixTimeMilliseconds" :class="parsed.type === 'UnixTimeMilliseconds' && 'value-match'">{{ parsed.unixTimeMilliseconds }}</td>
+                    <td v-if="shownColumns.unixTimeMicroseconds" :class="parsed.type === 'UnixTimeMicroseconds' && 'value-match'">{{ parsed.unixTimeMicroseconds }}</td>
+                    <td v-if="shownColumns.ticks"                :class="parsed.type === 'Ticks'                && 'value-match'">{{ parsed.ticks    }}            </td>
+                    <td v-if="shownColumns.timeGuid"             :class="parsed.type === 'TimeGuid'             && 'value-match'">{{ parsed.timeGuid }}            </td>
+                    <td></td>
+                  </tr>
+                  <tr v-else>
+                    <td colspan="3" style="text-align: center;">
+                      <span class="not-parsed">{{ input }}</span> <br>
+                    </td>
+                  </tr>
+  
+                  <tr class="table-header">
+                    <!-- Обыграть минимальную ширину по-другому - с помощью типовых значений -->
+                    <td v-if="shownColumns.dateTime"            ><span style="min-width: 176px;">DateTime (UTC)         </span></td>
+                    <td v-if="shownColumns.unixTimeSeconds"     ><span style="min-width:  88px;">UnixTime<br>(seconds)     </span></td>
+                    <td v-if="shownColumns.unixTimeMilliseconds"><span style="min-width:  88px;">UnixTime<br>(milliseconds)</span></td>
+                    <td v-if="shownColumns.unixTimeMicroseconds"><span style="min-width:  88px;">UnixTime<br>(microseconds)</span></td>
+                    <td v-if="shownColumns.ticks"               ><span style="min-width: 160px;">Ticks                  </span></td>
+                    <td v-if="shownColumns.timeGuid"            ><span style="min-width: 160px;">TimeGuid               </span></td>
+                    <td></td>
+                  </tr>
+  
+                  <tr
+                          v-for="(item, index) in parsedQueries"
+                          :class="item.origin === 'input' && 'added-row'"
+                          :key="item.index"
+                  >
+                    <td :class="item.value.type === 'DateTime' && 'type-match'" v-if="shownColumns.dateTime">
+                      <span>{{ item.value.dateTime }}</span>
+                    </td>
+                    <td :class="item.value.type === 'UnixTimeSeconds' && 'type-match'" v-if="shownColumns.unixTimeSeconds">
+                      <span>{{ item.value.unixTimeSeconds }}</span>
+                    </td>
+                    <td :class="item.value.type === 'UnixTimeMilliseconds' && 'type-match'" v-if="shownColumns.unixTimeMilliseconds">
+                      <span>{{ item.value.unixTimeMilliseconds }}</span>
+                    </td>
+                    <td :class="item.value.type === 'UnixTimeMicroseconds' && 'type-match'" v-if="shownColumns.unixTimeMicroseconds">
+                      <span>{{ item.value.unixTimeMicroseconds }}</span>
+                    </td>
+                    <td :class="item.value.type === 'Ticks' && 'type-match'" v-if="shownColumns.ticks">
+                      <span>{{ item.value.ticks    }}</span>
+                    </td>
+                    <td :class="item.value.type === 'TimeGuid' && 'type-match'" v-if="shownColumns.timeGuid">
+                      <span>{{ item.value.timeGuid    }}</span>
+                    </td>
+                    <td>
+                      <span class="remove-button" @click="remove(index)">❌</span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>
     </div>
   </div>
+
   <!-- dev  -->
   <script src="https://cdn.jsdelivr.net/npm/vue@2/dist/vue.js"></script>
+
   <!-- prod -->
 <!--  <script src="https://cdn.jsdelivr.net/npm/vue@2"></script>-->
+
+<!--
+  ToDo:
+    - V добавить логику отображения колонок
+    - V сконвертировать существующий localStorage и завести новый формат хранения
+    - X сохранять выбранные колонки в localStorage
+    -   TimeGuid
+    -   спрятать содержательную часть на время загрузки
+    - V убрать точки у названия колонок
+    - V добавить курсор pointer для выбора типа
+    - V unix time не парсится
+    - V выбор типа не работает
+    -   прибраться в размерах
+    -   вытащить стили
+    -   разбить стили на разные блоки по смыслу
+    -   темная тема
+-->
 </body>
 </html>
