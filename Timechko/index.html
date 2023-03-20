@@ -9,10 +9,24 @@
   <meta name="description" content="Convert ticks and unixtime to datetime and vice versa. Get time from TimeGuid">
   <script type="module" src="main.js"></script>
 
-  <!-- misc -->
+  <!-- common -->
   <style>
     .hidden {
       visibility: hidden;
+    }
+    :root {
+        --text-color: black;
+        --background-color: rgb(238, 238, 238);
+    }
+    @media (prefers-color-scheme: dark) {
+        :root {
+            --text-color: white;
+            --background-color: rgb(30, 30, 30);
+        }
+    }
+    body, input, select, option {
+      color: var(--text-color);
+      background: var(--background-color);
     }
   </style>
 
@@ -89,6 +103,9 @@
 
   <!-- app.in -->
   <style>
+    #in {
+      align-self: center;
+    }
     #column-selection {
       display: flex;
       justify-content: end;
@@ -113,16 +130,16 @@
       outline: none;
     }
     .input-empty:focus-within {
-      box-shadow: 0 0 5px 2px black;
+      box-shadow: 0 0 5px 2px var(--text-color);
     }
     .input-parsed:focus-within {
       box-shadow: 0 0 5px 2px green;
     }
     .input-not-parsed:focus-within {
-      box-shadow: 0 0 5px 2px red;
+      box-shadow: 0 0 5px 2px #ff6363;
     }
     .input-empty, .input-parsed, .input-not-parsed {
-      box-shadow: 0 0 3px 1px black;
+      box-shadow: 0 0 3px 1px var(--text-color);
     }
     .enter-sign {
       font-weight: bold;
@@ -131,7 +148,10 @@
       flex: 0;
     }
     #input-box select {
-       cursor: pointer;
+      cursor: pointer;
+      border: none;
+      background: none;
+      direction: rtl;
     }
     .failed-flush {
       animation-duration: .2s;
@@ -267,7 +287,7 @@
             </label>
             <span :class="!!parsed || 'hidden'" @click="flush" class="enter-sign" title="Keep record. Same as hit enter">⏎</span>
             <label accesskey="t">
-              <select v-model="type" style="border: none; background: none; direction: rtl;">
+              <select v-model="type">
                 <option selected>Guess                  </option>
                 <option         >DateTime               </option>
                 <option         >UnixTime (seconds)     </option>
@@ -367,7 +387,7 @@
     - V выбор типа не работает
     - V прибраться в размерах
     - V вытащить стили
-    -   темная тема
+    - V темная тема
 -->
 </body>
 </html>
