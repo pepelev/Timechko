@@ -349,9 +349,7 @@ public static partial class Time
                 get
                 {
                     var versionOctet = content[6];
-                    Console.WriteLine(versionOctet);
                     var clearedVersionOctet = versionOctet & 0b1111_0000;
-                    Console.WriteLine(clearedVersionOctet);
                     return clearedVersionOctet == 0b0001_0000;
                 }
             }

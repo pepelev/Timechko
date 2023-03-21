@@ -456,3 +456,6 @@ $RECYCLE.BIN/
 ## Verify
 
 *.received.cs
+
+## Publication
+docs/
