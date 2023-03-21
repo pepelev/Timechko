@@ -34,6 +34,9 @@ public static partial class Time
             .Map(dateTime => new TicksBased(dateTime.Ticks))
             .Map(result => new DetailedResult(result, Type.DateTime));
         var asNumeric = ParseLong(argument).Bind(NumericFormats.Parse);
+        var asTimeGuid = TimeGuid.Parse(argument)
+            .Map(timeGuid => new TimeGuidBased(timeGuid))
+            .Map(result => new DetailedResult(result, Type.TimeGuid));
         var details = kind.Trim() switch
         {
             "DateTime" => asDateTime,
@@ -42,8 +45,8 @@ public static partial class Time
             "UnixTimeMicroseconds" => ParseLong(argument).Bind(UnixTimeFormat.Microseconds.Parse),
             "UnixTimeGuess" => ParseLong(argument).Bind(UnixTimeFormat.Formats.Parse),
             "Ticks" => ParseLong(argument).Bind(TicksFormat.Singleton.Parse),
-            "TimeGuid" => Option<DetailedResult>.None, // todo
-            "Guess" or _ => asDateTime | asNumeric
+            "TimeGuid" => asTimeGuid,
+            "Guess" or _ => asDateTime | asNumeric | asTimeGuid
         };
 
         return details
@@ -96,86 +99,6 @@ public static partial class Time
             ? Option<long>.Some(result)
             : Option<long>.None;
     }
-
-    private static string DateTimeToTicks(string argument)
-    {
-        var success = DateTime.TryParse(
-            argument,
-            CultureInfo.InvariantCulture,
-            DateTimeStyles.AdjustToUniversal | DateTimeStyles.AllowWhiteSpaces | DateTimeStyles.AssumeUniversal,
-            out var result
-        );
-        return success
-            ? ToJson("DateTime", result.Ticks)
-            : UnknownToJson();
-    }
-
-    private static string UnixTimeToTicks(string argument)
-    {
-        var success = long.TryParse(
-            argument,
-            NumberStyles.Integer,
-            CultureInfo.InvariantCulture,
-            out var result
-        );
-        return success
-            ? ToJson("UnixTime", (DateTime.UnixEpoch + new TimeSpan(result * TimeSpan.TicksPerSecond)).Ticks)
-            : UnknownToJson();
-    }
-
-    private static string TicksToTicks(string argument)
-    {
-        var success = long.TryParse(
-            argument,
-            NumberStyles.Integer,
-            CultureInfo.InvariantCulture,
-            out var result
-        );
-        return success && result >= 0
-            ? ToJson("Ticks", result)
-            : UnknownToJson();
-    }
-
-    private static string GuessToTicks(string argument)
-    {
-        var success = long.TryParse(
-            argument,
-            NumberStyles.Integer,
-            CultureInfo.InvariantCulture,
-            out var result
-        );
-        if (!success)
-        {
-            return DateTimeToTicks(argument);
-        }
-
-        var minUnixTime = (DateTime.MinValue - DateTime.UnixEpoch).Ticks / TimeSpan.TicksPerSecond;
-        var maxUnixTime = (DateTime.MaxValue - DateTime.UnixEpoch).Ticks / TimeSpan.TicksPerSecond;
-        if (minUnixTime <= result && result <= maxUnixTime)
-        {
-            return UnixTimeToTicks(argument);
-        }
-
-        return TicksToTicks(argument);
-    }
-
-    private static string ToJson(string type, long ticks)
-    {
-        var dateTime = new DateTime(ticks, DateTimeKind.Utc);
-        var unixTime = (dateTime - DateTime.UnixEpoch).Ticks / TimeSpan.TicksPerSecond;
-        return ToJson(
-            type,
-            Print(dateTime),
-            unixTime.ToString(CultureInfo.InvariantCulture),
-            ticks.ToString(CultureInfo.InvariantCulture),
-            "93E9A3DC-E331-4CC1-BAA6-5A012F9D06C8" // todo
-        );
-    }
-
-    private static string UnknownToJson() => "null";
-
-    private static string ToJson(string type, string dateTime, string unixTime, string ticks, string timeGuid) =>
-        @$"{{""type"":""{type}"",""dateTime"":""{dateTime}"",""unixTime"":""{unixTime}"",""ticks"":""{ticks}"",""timeGuid"":""{timeGuid}}}";
 
     private static string Print(DateTime value)
     {
@@ -314,19 +237,6 @@ public static partial class Time
             : b;
     }
 
-    // todo
-    private enum TypeIn
-    {
-        Guess,
-        UnixTimeGuess,
-        UnixTimeSeconds,
-        UnixTimeMilliseconds,
-        UnixTimeMicroseconds,
-        Ticks,
-        DateTime,
-        TimeGuid
-    }
-
     private enum Type
     {
         UnixTimeSeconds,
@@ -351,7 +261,7 @@ public static partial class Time
         }
 
         public override long Ticks { get; }
-        public override TimeGuid? TimeGuid => Time.TimeGuid.TryCreateMinFromLong(Ticks);
+        public override TimeGuid? TimeGuid => Time.TimeGuid.TryCreateMinFromTicks(Ticks);
     }
 
     private sealed class TimeGuidBased : Result
@@ -369,20 +279,142 @@ public static partial class Time
 
     private readonly struct TimeGuid
     {
-        private readonly Guid value;
+        private static DateTime GregorianCalendarStart => new(1582, 10, 15, 0, 0, 0, DateTimeKind.Utc);
 
-        public TimeGuid(Guid value)
+        private readonly Layout layout;
+
+        private TimeGuid(Layout layout)
         {
-            this.value = value;
+            this.layout = layout;
         }
 
-        public override string ToString() => value.ToString("D");
+        public override string ToString() => layout.ToGuid().ToString("D");
+        public long Ticks => layout.Timestamp + GregorianCalendarStart.Ticks;
 
-        public long Ticks => throw new NotImplementedException();
-
-        public static TimeGuid? TryCreateMinFromLong(long ticks)
+        public static TimeGuid? TryCreateMinFromTicks(long ticks)
         {
-            return null; // todo
+            if (ticks < GregorianCalendarStart.Ticks)
+            {
+                return null;
+            }
+
+            var layout = Layout.Empty;
+            if (layout.TrySetTimestamp(ticks - GregorianCalendarStart.Ticks))
+            {
+                return new TimeGuid(layout);
+            }
+
+            return null;
+        }
+
+        public static Option<TimeGuid> Parse(string argument)
+        {
+            if (Guid.TryParse(argument, CultureInfo.InvariantCulture, out var guid))
+            {
+                var layout = new Layout(guid);
+                if (layout.IsTimeGuid)
+                {
+                    var timeGuid = new TimeGuid(layout);
+                    return Option<TimeGuid>.Some(timeGuid);
+                }
+            }
+
+            return Option<TimeGuid>.None;
+        }
+
+        private unsafe struct Layout
+        {
+            private const int Size = 16;
+            private const int FormattedSize = Size * 2;
+            private const int BitsInOctet = 8;
+            private const long MaxTimestamp = (1L << 60) - 1;
+            private const long MinTimestamp = 0;
+
+            public static Layout Empty => new(Guid.Parse("00000000-0000-1000-0000-000000000000"));
+
+            public Layout(Guid guid)
+            {
+                Span<char> buffer = stackalloc char[FormattedSize];
+                guid.TryFormat(buffer, out _, "N");
+                for (var i = 0; i < Size; i++)
+                {
+                    content[i] = byte.Parse(buffer.Slice(2 * i, 2), NumberStyles.HexNumber);
+                }
+            }
+
+            private fixed byte content[Size];
+
+            public bool IsTimeGuid
+            {
+                get
+                {
+                    var versionOctet = content[6];
+                    Console.WriteLine(versionOctet);
+                    var clearedVersionOctet = versionOctet & 0b1111_0000;
+                    Console.WriteLine(clearedVersionOctet);
+                    return clearedVersionOctet == 0b0001_0000;
+                }
+            }
+
+            public long Timestamp
+            {
+                get
+                {
+                    var value = 0L;
+                    var shift = 0;
+                    value |= (long)content[3] << ((shift++) * BitsInOctet);
+                    value |= (long)content[2] << ((shift++) * BitsInOctet);
+                    value |= (long)content[1] << ((shift++) * BitsInOctet);
+                    value |= (long)content[0] << ((shift++) * BitsInOctet);
+
+                    value |= (long)content[5] << ((shift++) * BitsInOctet);
+                    value |= (long)content[4] << ((shift++) * BitsInOctet);
+
+                    value |= (long)content[7] << ((shift++) * BitsInOctet);
+                    value |= (long)(content[6] & 0b0000_1111) << ((shift++) * BitsInOctet);
+
+                    return value;
+                }
+            }
+
+            public bool TrySetTimestamp(long value)
+            {
+                if (MinTimestamp <= value && value <= MaxTimestamp)
+                {
+                    byte Next()
+                    {
+                        var result = (byte)(value & 0xFF);
+                        value >>= 8;
+                        return result;
+                    }
+
+                    content[3] = Next();
+                    content[2] = Next();
+                    content[1] = Next();
+                    content[0] = Next();
+
+                    content[5] = Next();
+                    content[4] = Next();
+
+                    content[7] = Next();
+                    content[6] = (byte)(content[6] & 0b1111_0000 | Next());
+
+                    return true;
+                }
+
+                return false;
+            }
+
+            public readonly Guid ToGuid()
+            {
+                Span<char> buffer = stackalloc char[FormattedSize];
+                for (var i = 0; i < Size; i++)
+                {
+                    content[i].TryFormat(buffer[(2 * i)..], out _, "x2");
+                }
+
+                return Guid.Parse(buffer, CultureInfo.InvariantCulture);
+            }
         }
     }
 
@@ -394,7 +426,7 @@ public static partial class Time
         public DetailedResult(Result result, Type type)
         {
             this.result = result;
-            this.Type = type;
+            Type = type;
         }
 
         public long Ticks => result.Ticks;

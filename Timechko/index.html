@@ -114,6 +114,9 @@
       list-style-type: none;
       padding: 0;
     }
+    #column-selection input {
+      margin-right: 0.5rem;
+    }
     #input-box {
       display: flex;
       flex-direction: row;
@@ -212,7 +215,7 @@
         font-weight: bold;
       }
       .type-match {
-        text-decoration: black underline;
+        text-decoration: var(--text-color) underline;
       }
       .not-parsed {
         text-decoration: #ff6363 underline 2px;
@@ -304,12 +307,13 @@
           <table>
             <tbody>
               <tr v-if="parsed">
-                <td v-if="shownColumns.dateTime"             :class="parsed.type === 'DateTime'             && 'value-match'">{{ parsed.dateTime }}            </td>
-                <td v-if="shownColumns.unixTimeSeconds"      :class="parsed.type === 'UnixTimeSeconds'      && 'value-match'">{{ parsed.unixTimeSeconds }}     </td>
+                <td v-if="shownColumns.dateTime"             :class="parsed.type === 'DateTime'             && 'value-match'">{{ parsed.dateTime             }}</td>
+                <td v-if="shownColumns.unixTimeSeconds"      :class="parsed.type === 'UnixTimeSeconds'      && 'value-match'">{{ parsed.unixTimeSeconds      }}</td>
                 <td v-if="shownColumns.unixTimeMilliseconds" :class="parsed.type === 'UnixTimeMilliseconds' && 'value-match'">{{ parsed.unixTimeMilliseconds }}</td>
                 <td v-if="shownColumns.unixTimeMicroseconds" :class="parsed.type === 'UnixTimeMicroseconds' && 'value-match'">{{ parsed.unixTimeMicroseconds }}</td>
-                <td v-if="shownColumns.ticks"                :class="parsed.type === 'Ticks'                && 'value-match'">{{ parsed.ticks    }}            </td>
-                <td v-if="shownColumns.timeGuid"             :class="parsed.type === 'TimeGuid'             && 'value-match'">{{ parsed.timeGuid }}            </td>
+                <td v-if="shownColumns.ticks"                :class="parsed.type === 'Ticks'                && 'value-match'">{{ parsed.ticks                }}</td>
+                <td v-if="shownColumns.timeGuid"             :class="parsed.type === 'TimeGuid'             && 'value-match'">{{ parsed.timeGuid || "—"      }}</td>
+                <td></td>
                 </tr>
               <tr v-else>
                 <td colspan="999">
@@ -318,12 +322,12 @@
               </tr>
 
               <tr>
-                <td v-if="shownColumns.dateTime"             style="min-width: 20ch;"><span class="table-header">DateTime<br>(UTC)         </span></td>
-                <td v-if="shownColumns.unixTimeSeconds"      style="min-width: 11ch;"><span class="table-header">UnixTime<br>(seconds)     </span></td>
+                <td v-if="shownColumns.dateTime"             style="min-width: 20ch;"><span class="table-header">DateTime<br>(UTC)</span></td>
+                <td v-if="shownColumns.unixTimeSeconds"      style="min-width: 11ch;"><span class="table-header">UnixTime<br>(seconds)</span></td>
                 <td v-if="shownColumns.unixTimeMilliseconds" style="min-width: 14ch;"><span class="table-header">UnixTime<br>(milliseconds)</span></td>
                 <td v-if="shownColumns.unixTimeMicroseconds" style="min-width: 17ch;"><span class="table-header">UnixTime<br>(microseconds)</span></td>
-                <td v-if="shownColumns.ticks"                style="min-width: 18ch;"><span class="table-header">Ticks                     </span></td>
-                <td v-if="shownColumns.timeGuid"             style="min-width: 36ch;"><span class="table-header">TimeGuid                  </span></td>
+                <td v-if="shownColumns.ticks"                style="min-width: 18ch;"><span class="table-header">Ticks</span></td>
+                <td v-if="shownColumns.timeGuid"             style="min-width: 36ch;"><span class="table-header">TimeGuid</span></td>
                 <td><span class="hidden">❌</span></td>
               </tr>
 
@@ -348,7 +352,7 @@
                   <span>{{ item.value.ticks }}</span>
                 </td>
                 <td :class="item.value.type === 'TimeGuid' && 'type-match'" v-if="shownColumns.timeGuid">
-                  <span>{{ item.value.timeGuid }}</span>
+                  <span>{{ item.value.timeGuid || "—" }}</span>
                 </td>
                 <td>
                   <span class="remove-button" @click="remove(index)">❌</span>
@@ -370,24 +374,5 @@
 
   <!-- prod -->
 <!--  <script src="https://cdn.jsdelivr.net/npm/vue@2"></script>-->
-
-<!--
-  ToDo:
-    - V добавить логику отображения колонок
-    - V сконвертировать существующий localStorage и завести новый формат хранения
-    - X сохранять выбранные колонки в localStorage
-    - V кодировать type в hash
-    - V сверстать хорошо
-    - V значок enter не появляется
-    -   TimeGuid
-    - V спрятать содержательную часть на время загрузки
-    - V убрать точки у названия колонок
-    - V добавить курсор pointer для выбора типа
-    - V unix time не парсится
-    - V выбор типа не работает
-    - V прибраться в размерах
-    - V вытащить стили
-    - V темная тема
--->
 </body>
 </html>
