@@ -1,235 +1,378 @@
 ﻿<!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <title>Timechko</title>
+  <link rel="icon" type="image/x-icon" href="favicon.png">
   <meta charset="UTF-8">
+  <meta name="viewport"    content="width=device-width, initial-scale=1">
+  <meta name="keywords"    content="time, date, datetime, unixtime, ticks, timeguid, dotnet, convert">
+  <meta name="description" content="Convert ticks and unixtime to datetime and vice versa. Get time from TimeGuid">
   <script type="module" src="main.js"></script>
+
+  <!-- common -->
   <style>
-    * {
-        box-sizing: border-box;
+    .hidden {
+      visibility: hidden;
     }
-    .loading > *:last-child {
-        display: none;
+    :root {
+        --text-color: black;
+        --background-color: rgb(238, 238, 238);
     }
-    .loaded > *:first-child {
-        display: none;
+    @media (prefers-color-scheme: dark) {
+        :root {
+            --text-color: white;
+            --background-color: rgb(30, 30, 30);
+        }
     }
-    .table-header > td > span {
-        font-size: 20px !important;
-        font-weight: bold;
-        padding-top: 16px;
-        display: inline-block;
+    body, input, select, option {
+      color: var(--text-color);
+      background: var(--background-color);
     }
-    td {
+  </style>
+
+  <!-- correct footer layout, vertical page extension, correct scaling -->
+  <style>
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: start;
+      margin: 0;
+    }
+    footer {
+      text-align: center;
+      padding: 1rem 0;
+      color: gray;
+    }
+    .content-stripe {
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      padding: 0 0.5rem;
+    }
+    #root {
+      flex: 1;
+    }
+  </style>
+
+  <!-- loading view -->
+  <style>
+      #loading-view {
         text-align: center;
+      }
+      .loading #app {
+        display: none;
+      }
+      .loaded #loading-view {
+        display: none;
+      }
+    .clock-loader {
+      display: inline-block;
+      font-size: 6.5rem;
+      animation-duration: 2s;
+      animation-name: rotation;
+      animation-iteration-count: infinite;
+      animation-timing-function: linear;
     }
-    td:not(:last-child) {
-        padding-right: 32px;
+    @keyframes rotation {
+      from {
+        transform: rotate(0);
+      }
+      to {
+        transform: rotate(1turn);
+      }
     }
-    #app * {
-        font-family: monospace;
-        font-size: 16px;
+    .loading-explanation {
+      padding: 3rem;
+      display: inline-block;
     }
-    .value-match {
-        text-decoration: #1fb91f underline 2px;
-        font-weight: bold;
+  </style>
+
+  <!-- #app -->
+  <style>
+      #app {
+          display: flex;
+          flex-direction: column;
+          gap: 1rem;
+      }
+      #app * {
+          font-family: monospace;
+          font-size: 1rem;
+      }
+  </style>
+
+  <!-- app.in -->
+  <style>
+    #in {
+      align-self: center;
     }
-    .type-match {
-        text-decoration: black underline;
+    #column-selection {
+      display: flex;
+      justify-content: end;
     }
-    .not-parsed {
-        text-decoration: #ff6363 underline 2px;
+    #column-selection ul {
+      list-style-type: none;
+      padding: 0;
+    }
+    #column-selection input {
+      margin-right: 0.5rem;
+    }
+    #input-box {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      padding: 2px;
+      border-radius: 5px;
     }
     .input {
-        width: 100%;
-        border: none;
-        text-align: center;
+      min-width: 70ch;
+      border: none;
+      text-align: center;
     }
     .input:focus-visible {
-        outline: none;
+      outline: none;
     }
     .input-empty:focus-within {
-        box-shadow: 0 0 5px 2px black;
+      box-shadow: 0 0 5px 2px var(--text-color);
     }
     .input-parsed:focus-within {
-        box-shadow: 0 0 5px 2px green;
+      box-shadow: 0 0 5px 2px green;
     }
     .input-not-parsed:focus-within {
-        box-shadow: 0 0 5px 2px red;
+      box-shadow: 0 0 5px 2px #ff6363;
     }
     .input-empty, .input-parsed, .input-not-parsed {
-        box-shadow: 0 0 3px 1px black;
+      box-shadow: 0 0 3px 1px var(--text-color);
     }
     .enter-sign {
+      font-weight: bold;
+      cursor: pointer;
+      user-select: none;
+      flex: 0;
+    }
+    #input-box select {
+      cursor: pointer;
+      border: none;
+      background: none;
+      direction: rtl;
+    }
+    .failed-flush {
+      animation-duration: .2s;
+      animation-name: error-highlight;
+      animation-iteration-count: 1;
+    }
+    @keyframes error-highlight {
+      0% {
+        transform: translate(0);
+      }
+      10% {
+        transform: translate(-0.2rem);
+      }
+      30% {
+        transform: translate(0.2rem);
+      }
+      50% {
+        transform: translate(-0.2rem);
+      }
+      70% {
+        transform: translate(0.2rem);
+      }
+      90% {
+        transform: translate(-0.2rem);
+      }
+      100% {
+        transform: translate(0);
+      }
+    }
+  </style>
+
+  <!-- app.out -->
+  <style>
+      #out table {
+        border-collapse: collapse;
+        margin: 0 auto;
+      }
+      #out td {
+        text-align: center;
+      }
+      #out td:not(:last-child) {
+        padding-right: 1rem;
+      }
+      .remove-button {
+        visibility: hidden;
         cursor: pointer;
         user-select: none;
-        flex: 0;
-    }
-    .hidden {
-        visibility: hidden;
-    }
-    .remove-button {
-        visibility: hidden;
-        cursor: pointer;
-        user-select: none;
-    }
-    .remove-button:hover {
+      }
+      .remove-button:hover {
         border-radius: 7px;
         background: lightgray;
-    }
-    tr:hover .remove-button {
+      }
+      tr:hover .remove-button {
         visibility: visible;
-    }
-    .added-row {
+      }
+      .value-match {
+        text-decoration: #1fb91f underline 2px;
+        font-weight: bold;
+      }
+      .type-match {
+        text-decoration: var(--text-color) underline;
+      }
+      .not-parsed {
+        text-decoration: #ff6363 underline 2px;
+      }
+      .table-header {
+        font-size: 1.25rem !important;
+        font-weight: bold;
+        padding-top: 1rem;
+        display: inline-block;
+      }
+      .added-row {
         animation-duration: .4s;
         animation-name: highlight;
         animation-iteration-count: 2;
         animation-direction: alternate;
-    }
-    .added-row span {
+      }
+      .added-row span {
         animation-duration: .7s;
         animation-name: appearing;
         animation-timing-function: linear;
-    }
-    @keyframes highlight {
+      }
+      @keyframes highlight {
         from {
-            background: none;
+          background: none;
         }
         to {
-            background: lightgreen;
+          background: lightgreen;
         }
-    }
-
-    @keyframes appearing {
+      }
+      @keyframes appearing {
         from {
-            opacity: 0.2;
+          opacity: 0.2;
         }
         to {
-            opacity: 1;
+          opacity: 1;
         }
-    }
-    .failed-flush {
-        animation-duration: .2s;
-        animation-name: error-highlight;
-        animation-iteration-count: 1;
-    }
-    @keyframes error-highlight {
-        0% {
-            transform: translate(0);
-        }
-        10% {
-            transform: translate(-3px);
-        }
-        30% {
-            transform: translate(3px);
-        }
-        50% {
-            transform: translate(-3px);
-        }
-        70% {
-            transform: translate(3px);
-        }
-        90% {
-            transform: translate(-3px);
-        }
-        100% {
-            transform: translate(0);
-        }
-    }
-
-    .clock-loader {
-        display: inline-block;
-        font-size: 100px;
-        animation-duration: 2s;
-        animation-name: rotation;
-        animation-iteration-count: infinite;
-        animation-timing-function: linear;
-    }
-    @keyframes rotation {
-        from {
-            transform: rotate(0);
-        }
-        to {
-            transform: rotate(1turn);
-        }
-    }
+      }
   </style>
+
 </head>
 <body>
-  <div style="display: flex; flex-direction: row; justify-content: center;">
-    <div style="flex-basis: 800px;">
-      <h1>Timechko</h1>
-      <div id="root" class="loading">
-        <div style="text-align: center;">
-          <span class="clock-loader">⌚</span><br>
-          <span>Loading...</span><br>
-          <span style="padding: 50px; display: inline-block;">This page runs dotnet runtime inside WebAssembly, be patient</span>
-        </div>
-        <div id="app">
-          <div style="display: flex; flex-direction: row; align-items: center; padding: 2px; border-radius: 5px;" :class="inputClass" @animationend="flushFailureIndicated">
-            <label accesskey="q" style="flex: 1;">
-              <input type="text" placeholder="DateTime | UnixTime | Ticks" v-model="input" @keydown.enter="flush" class="input">
+  <div class="content-stripe">
+    <h1>Timechko</h1>
+
+    <div id="root" class="loading">
+      <div id="loading-view">
+        <span class="clock-loader">⌚</span><br>
+        <span>Loading...</span><br>
+        <span class="loading-explanation">
+          This page runs dotnet runtime inside WebAssembly, be patient.<br>
+          Overall bundle size is about 2,48 MB (1,67 MB compressed)
+        </span>
+      </div>
+      <div id="app">
+        <div id="in">
+          <div id="column-selection">
+            <div>
+              Table columns:
+              <ul>
+                <li><label><input type="checkbox" checked v-model="columns.dateTime"            >DateTime               </label></li>
+                <li><label><input type="checkbox" checked v-model="columns.unixTimeSeconds"     >UnixTime (seconds)     </label></li>
+                <li><label><input type="checkbox"         v-model="columns.unixTimeMilliseconds">UnixTime (milliseconds)</label></li>
+                <li><label><input type="checkbox"         v-model="columns.unixTimeMicroseconds">UnixTime (microseconds)</label></li>
+                <li><label><input type="checkbox" checked v-model="columns.ticks"               >Ticks                  </label></li>
+                <li><label><input type="checkbox"         v-model="columns.timeGuid"            >TimeGuid               </label></li>
+              </ul>
+            </div>
+          </div>
+          <div id="input-box" :class="inputClass" @animationend="flushFailureIndicated">
+            <label accesskey="q">
+              <input type="text" maxlength="60" placeholder="DateTime | UnixTime | Ticks | TimeGuid" v-model="input" @keydown.enter="flush" class="input">
             </label>
-            <span :class="parsed || 'hidden'" @click="flush" class="enter-sign" title="Keep record. Same as hit enter">⏎</span>
-            <label accesskey="t" style="flex: 0;">
-              <select v-model="type" style="border: none; background: none; direction: rtl;">
-                <option selected>Guess</option>
-                <option>DateTime</option>
-                <option>UnixTime</option>
-                <option>Ticks</option>
+            <span :class="!!parsed || 'hidden'" @click="flush" class="enter-sign" title="Keep record. Same as hit enter">⏎</span>
+            <label accesskey="t">
+              <select v-model="type">
+                <option selected>Guess                  </option>
+                <option         >DateTime               </option>
+                <option         >UnixTime (seconds)     </option>
+                <option         >UnixTime (milliseconds)</option>
+                <option         >UnixTime (microseconds)</option>
+                <option         >UnixTime (guess)       </option>
+                <option         >Ticks                  </option>
+                <option         >TimeGuid               </option>
               </select>
             </label>
           </div>
-          <div style="margin-top: 16px;">
-            <table style="border-collapse: collapse; margin-left: auto; margin-right: auto;">
-              <tbody>
-                <tr v-if="parsed">
-                  <td :class="parsed.type === 'DateTime' && 'value-match'">{{ parsed.dateTime }}</td>
-                  <td :class="parsed.type === 'UnixTime' && 'value-match'">{{ parsed.unixTime }}</td>
-                  <td :class="parsed.type === 'Ticks'    && 'value-match'">{{ parsed.ticks    }}</td>
-                  <td></td>
+        </div>
+        <div id="out">
+          <table>
+            <tbody>
+              <tr v-if="parsed">
+                <td v-if="shownColumns.dateTime"             :class="parsed.type === 'DateTime'             && 'value-match'">{{ parsed.dateTime             }}</td>
+                <td v-if="shownColumns.unixTimeSeconds"      :class="parsed.type === 'UnixTimeSeconds'      && 'value-match'">{{ parsed.unixTimeSeconds      }}</td>
+                <td v-if="shownColumns.unixTimeMilliseconds" :class="parsed.type === 'UnixTimeMilliseconds' && 'value-match'">{{ parsed.unixTimeMilliseconds }}</td>
+                <td v-if="shownColumns.unixTimeMicroseconds" :class="parsed.type === 'UnixTimeMicroseconds' && 'value-match'">{{ parsed.unixTimeMicroseconds }}</td>
+                <td v-if="shownColumns.ticks"                :class="parsed.type === 'Ticks'                && 'value-match'">{{ parsed.ticks                }}</td>
+                <td v-if="shownColumns.timeGuid"             :class="parsed.type === 'TimeGuid'             && 'value-match'">{{ parsed.timeGuid || "—"      }}</td>
+                <td></td>
                 </tr>
-                <tr v-else>
-                  <td colspan="3" style="text-align: center;">
-                    <span class="not-parsed">{{ input }}</span> <br>
-                  </td>
-                </tr>
+              <tr v-else>
+                <td colspan="999">
+                  <span class="not-parsed">{{ input }}</span> <br>
+                </td>
+              </tr>
 
-                <tr class="table-header">
-                  <td><span style="min-width: 176px;">DateTime (UTC)</span></td>
-                  <td><span style="min-width:  88px;">UnixTime      </span></td>
-                  <td><span style="min-width: 160px;">Ticks         </span></td>
-                  <td></td>
-                </tr>
+              <tr>
+                <td v-if="shownColumns.dateTime"             style="min-width: 20ch;"><span class="table-header">DateTime<br>(UTC)</span></td>
+                <td v-if="shownColumns.unixTimeSeconds"      style="min-width: 11ch;"><span class="table-header">UnixTime<br>(seconds)</span></td>
+                <td v-if="shownColumns.unixTimeMilliseconds" style="min-width: 14ch;"><span class="table-header">UnixTime<br>(milliseconds)</span></td>
+                <td v-if="shownColumns.unixTimeMicroseconds" style="min-width: 17ch;"><span class="table-header">UnixTime<br>(microseconds)</span></td>
+                <td v-if="shownColumns.ticks"                style="min-width: 18ch;"><span class="table-header">Ticks</span></td>
+                <td v-if="shownColumns.timeGuid"             style="min-width: 36ch;"><span class="table-header">TimeGuid</span></td>
+                <td><span class="hidden">❌</span></td>
+              </tr>
 
-                <tr 
-                        v-for="(item, index) in parsedQueries"
-                        :class="item.origin === 'input' && 'added-row'"
-                        :key="item.index"
-                >
-                  <td :class="item.value.type === 'DateTime' && 'type-match'">
-                    <span>{{ item.value.dateTime }}</span>
-                  </td>
-                  <td :class="item.value.type === 'UnixTime' && 'type-match'">
-                    <span>{{ item.value.unixTime }}</span>
-                  </td>
-                  <td :class="item.value.type === 'Ticks'    && 'type-match'">
-                    <span>{{ item.value.ticks    }}</span>
-                  </td>
-                  <td>
-                    <span class="remove-button" @click="remove(index)">❌</span>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+              <tr
+                      v-for="(item, index) in parsedQueries"
+                      :class="item.origin === 'input' && 'added-row'"
+                      :key="item.index"
+              >
+                <td :class="item.value.type === 'DateTime' && 'type-match'" v-if="shownColumns.dateTime">
+                  <span>{{ item.value.dateTime }}</span>
+                </td>
+                <td :class="item.value.type === 'UnixTimeSeconds' && 'type-match'" v-if="shownColumns.unixTimeSeconds">
+                  <span>{{ item.value.unixTimeSeconds }}</span>
+                </td>
+                <td :class="item.value.type === 'UnixTimeMilliseconds' && 'type-match'" v-if="shownColumns.unixTimeMilliseconds">
+                  <span>{{ item.value.unixTimeMilliseconds }}</span>
+                </td>
+                <td :class="item.value.type === 'UnixTimeMicroseconds' && 'type-match'" v-if="shownColumns.unixTimeMicroseconds">
+                  <span>{{ item.value.unixTimeMicroseconds }}</span>
+                </td>
+                <td :class="item.value.type === 'Ticks' && 'type-match'" v-if="shownColumns.ticks">
+                  <span>{{ item.value.ticks }}</span>
+                </td>
+                <td :class="item.value.type === 'TimeGuid' && 'type-match'" v-if="shownColumns.timeGuid">
+                  <span>{{ item.value.timeGuid || "—" }}</span>
+                </td>
+                <td>
+                  <span class="remove-button" @click="remove(index)">❌</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
+
+    <footer>
+      Pepelev Alexey | <a href="https://github.com/pepelev/Timechko" target="_blank">Source on Github</a>
+    </footer>
   </div>
+
   <!-- dev  -->
-<!--  <script src="https://cdn.jsdelivr.net/npm/vue@2/dist/vue.js"></script>-->
+  <script src="https://cdn.jsdelivr.net/npm/vue@2/dist/vue.js"></script>
+
   <!-- prod -->
-  <script src="https://cdn.jsdelivr.net/npm/vue@2"></script>
+<!--  <script src="https://cdn.jsdelivr.net/npm/vue@2"></script>-->
 </body>
 </html>

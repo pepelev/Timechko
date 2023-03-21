@@ -1,8 +1,12 @@
 {
-  "mainAssemblyName": "Wasm.dll",
+  "mainAssemblyName": "Timechko.dll",
   "assemblyRootFolder": "managed",
   "debugLevel": 0,
   "assets": [
+    {
+      "behavior": "assembly",
+      "name": "System.Linq.dll"
+    },
     {
       "behavior": "assembly",
       "name": "System.Private.CoreLib.dll"
@@ -21,7 +25,7 @@
     },
     {
       "behavior": "assembly",
-      "name": "Wasm.dll"
+      "name": "Timechko.dll"
     },
     {
       "virtualPath": "runtimeconfig.bin",
