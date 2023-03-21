@@ -1,0 +1,1 @@
+Run scripts from root repository directory
