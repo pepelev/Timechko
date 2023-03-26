@@ -16,7 +16,7 @@
     }
     :root {
         --text-color: black;
-        --background-color: rgb(238, 238, 238);
+        --background-color: white;
     }
     @media (prefers-color-scheme: dark) {
         :root {
@@ -198,6 +198,12 @@
       #out td:not(:last-child) {
         padding-right: 1rem;
       }
+      .timestamp:hover, .version:hover, .clock-sequence:hover, .node:hover {
+          text-decoration: overline;
+      }
+      .time-guid:has(> .timestamp:hover) .timestamp {
+          text-decoration: overline;
+      }
       .remove-button {
         visibility: hidden;
         cursor: pointer;
@@ -266,21 +272,21 @@
         <span>Loading...</span><br>
         <span class="loading-explanation">
           This page runs dotnet runtime inside WebAssembly, be patient.<br>
-          Overall bundle size is about 2,48 MB (1,67 MB compressed)
+          Overall bundle size is about 2,9 MB (1,8 MB compressed)
         </span>
       </div>
       <div id="app">
         <div id="in">
           <div id="column-selection">
             <div>
-              Table columns:
+              Columns:
               <ul>
-                <li><label><input type="checkbox" checked v-model="columns.dateTime"            >DateTime               </label></li>
-                <li><label><input type="checkbox" checked v-model="columns.unixTimeSeconds"     >UnixTime (seconds)     </label></li>
+                <li><label><input type="checkbox" checked v-model="columns.dateTime"            >DateTime</label></li>
+                <li><label><input type="checkbox" checked v-model="columns.unixTimeSeconds"     >UnixTime (seconds)</label></li>
                 <li><label><input type="checkbox"         v-model="columns.unixTimeMilliseconds">UnixTime (milliseconds)</label></li>
                 <li><label><input type="checkbox"         v-model="columns.unixTimeMicroseconds">UnixTime (microseconds)</label></li>
-                <li><label><input type="checkbox" checked v-model="columns.ticks"               >Ticks                  </label></li>
-                <li><label><input type="checkbox"         v-model="columns.timeGuid"            >TimeGuid               </label></li>
+                <li><label><input type="checkbox" checked v-model="columns.ticks"               >Ticks</label></li>
+                <li><label><input type="checkbox"         v-model="columns.timeGuid"            >TimeGuid</label></li>
               </ul>
             </div>
           </div>
@@ -307,17 +313,20 @@
           <table>
             <tbody>
               <tr v-if="parsed">
-                <td v-if="shownColumns.dateTime"             :class="parsed.type === 'DateTime'             && 'value-match'">{{ parsed.dateTime             }}</td>
-                <td v-if="shownColumns.unixTimeSeconds"      :class="parsed.type === 'UnixTimeSeconds'      && 'value-match'">{{ parsed.unixTimeSeconds      }}</td>
-                <td v-if="shownColumns.unixTimeMilliseconds" :class="parsed.type === 'UnixTimeMilliseconds' && 'value-match'">{{ parsed.unixTimeMilliseconds }}</td>
-                <td v-if="shownColumns.unixTimeMicroseconds" :class="parsed.type === 'UnixTimeMicroseconds' && 'value-match'">{{ parsed.unixTimeMicroseconds }}</td>
-                <td v-if="shownColumns.ticks"                :class="parsed.type === 'Ticks'                && 'value-match'">{{ parsed.ticks                }}</td>
-                <td v-if="shownColumns.timeGuid"             :class="parsed.type === 'TimeGuid'             && 'value-match'">{{ parsed.timeGuid || "—"      }}</td>
+                <td v-if="shownColumns.dateTime"                            :class="parsed.type === 'DateTime'             && 'value-match'">{{ parsed.dateTime             }}</td>
+                <td v-if="shownColumns.unixTimeSeconds"                     :class="parsed.type === 'UnixTimeSeconds'      && 'value-match'">{{ parsed.unixTimeSeconds      }}</td>
+                <td v-if="shownColumns.unixTimeMilliseconds"                :class="parsed.type === 'UnixTimeMilliseconds' && 'value-match'">{{ parsed.unixTimeMilliseconds }}</td>
+                <td v-if="shownColumns.unixTimeMicroseconds"                :class="parsed.type === 'UnixTimeMicroseconds' && 'value-match'">{{ parsed.unixTimeMicroseconds }}</td>
+                <td v-if="shownColumns.ticks"                               :class="parsed.type === 'Ticks'                && 'value-match'">{{ parsed.ticks                }}</td>
+                <td v-if="shownColumns.timeGuid && parsed.detailedTimeGuid" :class="parsed.type === 'TimeGuid'             && 'value-match'" class="time-guid">
+                  <span class="timestamp" title="Timestamp">{{ parsed.detailedTimeGuid.timeLow }}</span>-<span class="timestamp" title="Timestamp">{{ parsed.detailedTimeGuid.timeMid }}</span>-<span class="version" title="Version. For TimeGuid must be 1">{{ parsed.detailedTimeGuid.version }}</span><span class="timestamp" title="Timestamp">{{ parsed.detailedTimeGuid.timeHigh }}</span>-<span class="clock-sequence" title="Clock sequence">{{ parsed.detailedTimeGuid.clockSequence }}</span>-<span class="node" title="Node">{{ parsed.detailedTimeGuid.node }}</span>
+                </td>
+                <td v-else>&mdash;</td>
                 <td></td>
-                </tr>
+              </tr>
               <tr v-else>
                 <td colspan="999">
-                  <span class="not-parsed">{{ input }}</span> <br>
+                  <span class="not-parsed">{{ input }}</span>
                 </td>
               </tr>
 
@@ -351,9 +360,10 @@
                 <td :class="item.value.type === 'Ticks' && 'type-match'" v-if="shownColumns.ticks">
                   <span>{{ item.value.ticks }}</span>
                 </td>
-                <td :class="item.value.type === 'TimeGuid' && 'type-match'" v-if="shownColumns.timeGuid">
-                  <span>{{ item.value.timeGuid || "—" }}</span>
+                <td :class="item.value.type === 'TimeGuid' && 'type-match'" v-if="shownColumns.timeGuid && item.value.detailedTimeGuid" class="time-guid">
+                  <span class="timestamp" title="Timestamp">{{ item.value.detailedTimeGuid.timeLow }}</span>-<span class="timestamp" title="Timestamp">{{ item.value.detailedTimeGuid.timeMid }}</span>-<span class="version" title="Version. For TimeGuid must be 1">{{ item.value.detailedTimeGuid.version }}</span><span class="timestamp" title="Timestamp">{{ item.value.detailedTimeGuid.timeHigh }}</span>-<span class="clock-sequence" title="Clock sequence">{{ item.value.detailedTimeGuid.clockSequence }}</span>-<span class="node" title="Node">{{ item.value.detailedTimeGuid.node }}</span>
                 </td>
+                <td v-else-if="shownColumns.timeGuid">&mdash;</td>
                 <td>
                   <span class="remove-button" @click="remove(index)">❌</span>
                 </td>
@@ -369,10 +379,8 @@
     </footer>
   </div>
 
-  <!-- dev  -->
-  <script src="https://cdn.jsdelivr.net/npm/vue@2/dist/vue.js"></script>
+  <!-- dev  --> <script src="https://cdn.jsdelivr.net/npm/vue@2/dist/vue.js"></script>
+  <!-- prod <script src="https://cdn.jsdelivr.net/npm/vue@2"></script> -->
 
-  <!-- prod -->
-<!--  <script src="https://cdn.jsdelivr.net/npm/vue@2"></script>-->
 </body>
 </html>
