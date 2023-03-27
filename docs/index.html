@@ -321,7 +321,7 @@
                 <td v-if="shownColumns.timeGuid && parsed.detailedTimeGuid" :class="parsed.type === 'TimeGuid'             && 'value-match'" class="time-guid">
                   <span class="timestamp" title="Timestamp">{{ parsed.detailedTimeGuid.timeLow }}</span>-<span class="timestamp" title="Timestamp">{{ parsed.detailedTimeGuid.timeMid }}</span>-<span class="version" title="Version. For TimeGuid must be 1">{{ parsed.detailedTimeGuid.version }}</span><span class="timestamp" title="Timestamp">{{ parsed.detailedTimeGuid.timeHigh }}</span>-<span class="clock-sequence" title="Clock sequence">{{ parsed.detailedTimeGuid.clockSequence }}</span>-<span class="node" title="Node">{{ parsed.detailedTimeGuid.node }}</span>
                 </td>
-                <td v-else>&mdash;</td>
+                <td v-else-if="shownColumns.timeGuid">&mdash;</td>
                 <td></td>
               </tr>
               <tr v-else>
@@ -375,7 +375,7 @@
     </div>
 
     <footer>
-      Pepelev Alexey | <a href="https://github.com/pepelev/Timechko/commit/132b492fc4cada53c9e0edc5bc583d7b195b7730" target="_blank">Source on Github</a>
+      Pepelev Alexey | <a href="https://github.com/pepelev/Timechko/commit/d2959f6298b2e907d2b25797e85375a741361f1d" target="_blank">Source on Github</a>
     </footer>
   </div>
 
