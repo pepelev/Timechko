@@ -15,7 +15,25 @@ const parseRaw = exports.Time.Parse;
 
 const parse = function (value, type) {
     const parsed = parseRaw(value, type);
-    return JSON.parse(parsed);
+    const obj = JSON.parse(parsed);
+
+    if (obj && obj.timeGuid) {
+        const timeGuid = obj.timeGuid;
+        const pattern = /^(........)-(....)-(.)(...)-(....)-(............)$/s;
+        const matched = timeGuid.match(pattern);
+        if (matched) {
+            obj.detailedTimeGuid = {
+                timeLow: matched[1],
+                timeMid: matched[2],
+                timeHigh: matched[4],
+                version: matched[3],
+                clockSequence: matched[5],
+                node: matched[6]
+            };
+        }
+    }
+
+    return obj;
 };
 
 const queriesStorage = {
