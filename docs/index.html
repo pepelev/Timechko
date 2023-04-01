@@ -12,14 +12,25 @@
   <!-- common -->
   <style>
     .hidden {
-      visibility: hidden;
+      visibility: hidden !important;
     }
-    :root {
+    body.dark-theme {
+        color-scheme: dark;
+        --text-color: white;
+        --background-color: rgb(30, 30, 30);
+    }
+    body.light-theme {
+        color-scheme: light;
         --text-color: black;
         --background-color: white;
     }
+    body {
+        --text-color: black;
+        --background-color: white;
+        color-scheme: light dark;
+    }
     @media (prefers-color-scheme: dark) {
-        :root {
+        body {
             --text-color: white;
             --background-color: rgb(30, 30, 30);
         }
@@ -28,15 +39,27 @@
       color: var(--text-color);
       background: var(--background-color);
     }
+    select {
+      cursor: pointer;
+    }
   </style>
 
-  <!-- correct footer layout, vertical page extension, correct scaling -->
+  <!-- header, correct footer layout, theme, vertical page extension, correct scaling -->
   <style>
     body {
       display: flex;
       flex-direction: column;
       align-items: start;
       margin: 0;
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+    }
+    #theme-select {
+      margin-left: 0.5rem;
+      border: none;
     }
     footer {
       text-align: center;
@@ -91,13 +114,13 @@
   <!-- #app -->
   <style>
       #app {
-          display: flex;
-          flex-direction: column;
-          gap: 1rem;
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
       }
-      #app * {
-          font-family: monospace;
-          font-size: 1rem;
+      #app *, .text * {
+        font-family: monospace;
+        font-size: 1rem;
       }
   </style>
 
@@ -111,6 +134,7 @@
       justify-content: end;
     }
     #column-selection ul {
+      margin-top: 0.3rem;
       list-style-type: none;
       padding: 0;
     }
@@ -151,9 +175,7 @@
       flex: 0;
     }
     #input-box select {
-      cursor: pointer;
       border: none;
-      background: none;
       direction: rtl;
     }
     .failed-flush {
@@ -193,10 +215,16 @@
         margin: 0 auto;
       }
       #out td {
+        text-align: right;
+      }
+      #out td.date-time, #out td.time-guid {
+        text-align: left;
+      }
+      #out td.not-parsed-out {
         text-align: center;
       }
       #out td:not(:last-child) {
-        padding-right: 1rem;
+        padding-right: 0.7rem;
       }
       .timestamp:hover, .version:hover, .clock-sequence:hover, .node:hover {
           text-decoration: overline;
@@ -204,21 +232,31 @@
       .time-guid:has(> .timestamp:hover) .timestamp {
           text-decoration: overline;
       }
-      .remove-button {
-        visibility: hidden;
+      .add-button, .remove-button {
         cursor: pointer;
         user-select: none;
+        border-radius: 1em;
+      }
+      .add-button {
+        color: green;
+        padding: 0 0.3rem;
+      }
+      .remove-button {
+          visibility: hidden;
+          padding: 0 0.3rem;
+          color: red;
+      }
+      .add-button:hover {
+        background: lightgreen;
       }
       .remove-button:hover {
-        border-radius: 7px;
-        background: lightgray;
+          background: lightcoral;
       }
       tr:hover .remove-button {
         visibility: visible;
       }
       .value-match {
         text-decoration: #1fb91f underline 2px;
-        font-weight: bold;
       }
       .type-match {
         text-decoration: var(--text-color) underline;
@@ -227,9 +265,7 @@
         text-decoration: #ff6363 underline 2px;
       }
       .table-header {
-        font-size: 1.25rem !important;
-        font-weight: bold;
-        padding-top: 1rem;
+        padding: 0.3rem 0;
         display: inline-block;
       }
       .added-row {
@@ -264,8 +300,62 @@
 </head>
 <body>
   <div class="content-stripe">
-    <h1>Timechko</h1>
-
+    <header>
+      <h1>Timechko</h1>
+      <script>
+          const selectTheme = function () {
+              const select = document.getElementById("theme-select");
+              const body = document.getElementsByTagName("body")[0];
+              switch (select.value) {
+                  case "Auto":
+                      body.classList.remove("light-theme");
+                      body.classList.remove("dark-theme");
+                      break;
+                  case "Light":
+                      body.classList.add("light-theme");
+                      body.classList.remove("dark-theme");
+                      break;
+                  case "Dark":
+                      body.classList.remove("light-theme");
+                      body.classList.add("dark-theme");
+                      break;
+              }
+  
+              try {
+                  window.localStorage.setItem("theme", select.value || "")
+              } catch {
+                  // suppress any errors
+              }
+          }
+      </script>
+      <label class="text">
+        Theme:
+        <select id="theme-select" onchange="selectTheme()">
+          <option selected>Auto</option>
+          <option         >Light</option>
+          <option         >Dark</option>
+        </select>
+      </label>
+      <script>
+          let theme = "";
+          try {
+              theme = window.localStorage.getItem("theme");
+          } catch {
+              // suppress any errors
+          }
+  
+          const select = document.getElementById("theme-select");
+          switch (theme) {
+              case "Light":
+                  select.value = "Light";
+                  break;
+              case "Dark":
+                  select.value = "Dark";
+                  break;
+          }
+          selectTheme();
+      </script>
+    </header>
     <div id="root" class="loading">
       <div id="loading-view">
         <span class="clock-loader">⌚</span><br>
@@ -294,7 +384,6 @@
             <label accesskey="q">
               <input type="text" maxlength="60" placeholder="DateTime | UnixTime | Ticks | TimeGuid" v-model="input" @keydown.enter="flush" class="input">
             </label>
-            <span :class="!!parsed || 'hidden'" @click="flush" class="enter-sign" title="Keep record. Same as hit enter">⏎</span>
             <label accesskey="t">
               <select v-model="type">
                 <option selected>Guess                  </option>
@@ -313,31 +402,33 @@
           <table>
             <tbody>
               <tr v-if="parsed">
-                <td v-if="shownColumns.dateTime"                            :class="parsed.type === 'DateTime'             && 'value-match'">{{ parsed.dateTime             }}</td>
-                <td v-if="shownColumns.unixTimeSeconds"                     :class="parsed.type === 'UnixTimeSeconds'      && 'value-match'">{{ parsed.unixTimeSeconds      }}</td>
-                <td v-if="shownColumns.unixTimeMilliseconds"                :class="parsed.type === 'UnixTimeMilliseconds' && 'value-match'">{{ parsed.unixTimeMilliseconds }}</td>
-                <td v-if="shownColumns.unixTimeMicroseconds"                :class="parsed.type === 'UnixTimeMicroseconds' && 'value-match'">{{ parsed.unixTimeMicroseconds }}</td>
-                <td v-if="shownColumns.ticks"                               :class="parsed.type === 'Ticks'                && 'value-match'">{{ parsed.ticks                }}</td>
+                <td v-if="shownColumns.dateTime"                            :class="parsed.type === 'DateTime'             && 'value-match'" class="date-time">{{ parsed.dateTime             }}</td>
+                <td v-if="shownColumns.unixTimeSeconds"                     :class="parsed.type === 'UnixTimeSeconds'      && 'value-match'"                  >{{ parsed.unixTimeSeconds      }}</td>
+                <td v-if="shownColumns.unixTimeMilliseconds"                :class="parsed.type === 'UnixTimeMilliseconds' && 'value-match'"                  >{{ parsed.unixTimeMilliseconds }}</td>
+                <td v-if="shownColumns.unixTimeMicroseconds"                :class="parsed.type === 'UnixTimeMicroseconds' && 'value-match'"                  >{{ parsed.unixTimeMicroseconds }}</td>
+                <td v-if="shownColumns.ticks"                               :class="parsed.type === 'Ticks'                && 'value-match'"                  >{{ parsed.ticks                }}</td>
                 <td v-if="shownColumns.timeGuid && parsed.detailedTimeGuid" :class="parsed.type === 'TimeGuid'             && 'value-match'" class="time-guid">
                   <span class="timestamp" title="Timestamp">{{ parsed.detailedTimeGuid.timeLow }}</span>-<span class="timestamp" title="Timestamp">{{ parsed.detailedTimeGuid.timeMid }}</span>-<span class="version" title="Version. For TimeGuid must be 1">{{ parsed.detailedTimeGuid.version }}</span><span class="timestamp" title="Timestamp">{{ parsed.detailedTimeGuid.timeHigh }}</span>-<span class="clock-sequence" title="Clock sequence">{{ parsed.detailedTimeGuid.clockSequence }}</span>-<span class="node" title="Node">{{ parsed.detailedTimeGuid.node }}</span>
                 </td>
                 <td v-else-if="shownColumns.timeGuid">&mdash;</td>
-                <td></td>
+                <td>
+                  <span class="add-button" @click="flush" title="Keep record. Same as hit enter on input">+</span>
+                </td>
               </tr>
               <tr v-else>
-                <td colspan="999">
+                <td colspan="999" class="not-parsed-out">
                   <span class="not-parsed">{{ input }}</span>
                 </td>
               </tr>
 
               <tr>
-                <td v-if="shownColumns.dateTime"             style="min-width: 20ch;"><span class="table-header">DateTime<br>(UTC)</span></td>
-                <td v-if="shownColumns.unixTimeSeconds"      style="min-width: 11ch;"><span class="table-header">UnixTime<br>(seconds)</span></td>
-                <td v-if="shownColumns.unixTimeMilliseconds" style="min-width: 14ch;"><span class="table-header">UnixTime<br>(milliseconds)</span></td>
-                <td v-if="shownColumns.unixTimeMicroseconds" style="min-width: 17ch;"><span class="table-header">UnixTime<br>(microseconds)</span></td>
-                <td v-if="shownColumns.ticks"                style="min-width: 18ch;"><span class="table-header">Ticks</span></td>
-                <td v-if="shownColumns.timeGuid"             style="min-width: 36ch;"><span class="table-header">TimeGuid</span></td>
-                <td><span class="hidden">❌</span></td>
+                <td v-if="shownColumns.dateTime" class="date-time" style="min-width: 20ch;"><span class="table-header">DateTime (UTC)</span></td>
+                <td v-if="shownColumns.unixTimeSeconds"            style="min-width: 11ch;"><span class="table-header">UnixTime<br>(seconds)</span></td>
+                <td v-if="shownColumns.unixTimeMilliseconds"       style="min-width: 14ch;"><span class="table-header">UnixTime<br>(milliseconds)</span></td>
+                <td v-if="shownColumns.unixTimeMicroseconds"       style="min-width: 17ch;"><span class="table-header">UnixTime<br>(microseconds)</span></td>
+                <td v-if="shownColumns.ticks"                      style="min-width: 18ch;"><span class="table-header">Ticks</span></td>
+                <td v-if="shownColumns.timeGuid" class="time-guid" style="min-width: 36ch;"><span class="table-header">TimeGuid</span></td>
+                <td><span class="remove-button hidden">-</span></td>
               </tr>
 
               <tr
@@ -345,7 +436,7 @@
                       :class="item.origin === 'input' && 'added-row'"
                       :key="item.index"
               >
-                <td :class="item.value.type === 'DateTime' && 'type-match'" v-if="shownColumns.dateTime">
+                <td :class="item.value.type === 'DateTime' && 'type-match'" v-if="shownColumns.dateTime" class="date-time">
                   <span>{{ item.value.dateTime }}</span>
                 </td>
                 <td :class="item.value.type === 'UnixTimeSeconds' && 'type-match'" v-if="shownColumns.unixTimeSeconds">
@@ -365,7 +456,7 @@
                 </td>
                 <td v-else-if="shownColumns.timeGuid">&mdash;</td>
                 <td>
-                  <span class="remove-button" @click="remove(index)">❌</span>
+                  <span class="remove-button" @click="remove(index)" title="Remove record">-</span>
                 </td>
               </tr>
             </tbody>
@@ -373,9 +464,8 @@
         </div>
       </div>
     </div>
-
     <footer>
-      Pepelev Alexey | <a href="https://github.com/pepelev/Timechko/commit/d2959f6298b2e907d2b25797e85375a741361f1d" target="_blank">Source on Github</a>
+      Pepelev Alexey | <a href="https://github.com/pepelev/Timechko/commit/a6751180115dfb70f93ea46cc7668bbc82af882d" target="_blank">Source on Github</a>
     </footer>
   </div>
 
